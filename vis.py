@@ -56,8 +56,8 @@ def get_grid_coords(dims, resolution):
     return coords_grid
 
 def save_occ(
-        save_dir, 
-        gaussian, 
+        save_dir,
+        gaussian,
         name,
         sem=False,
         cap=2,
@@ -86,8 +86,8 @@ def save_occ(
         voxels[..., (-cap):] = 0
         for z in range(voxels.shape[-1] - cap):
             mask = (voxels > 0)[..., z]
-            voxels[..., z][mask] = z + 1 
-    
+            voxels[..., z][mask] = z + 1
+
     # Compute the voxels coordinates
     grid_coords = get_grid_coords(
         voxels.shape, voxel_size
@@ -116,7 +116,7 @@ def save_occ(
                 (fov_grid_coords[:, 3] > 0) & (fov_grid_coords[:, 3] < 20)
             ]
     print(len(fov_voxels))
-    
+
     figure = mlab.figure(size=(2560, 1440), bgcolor=(1, 1, 1))
     # Draw occupied inside FOV voxels
     voxel_size = sum(voxel_size) / 3
@@ -159,12 +159,12 @@ def save_occ(
                     [255,   0,   0, 255],       # pedestrian           red
                     [255, 240, 150, 255],       # traffic_cone         light yellow
                     [135,  60,   0, 255],       # trailer              brown
-                    [160,  32, 240, 255],       # truck                purple                
+                    [160,  32, 240, 255],       # truck                purple
                     [255,   0, 255, 255],       # driveable_surface    dark pink
                     # [175,   0,  75, 255],       # other_flat           dark red
                     [139, 137, 137, 255],
                     [ 75,   0,  75, 255],       # sidewalk             dard purple
-                    [150, 240,  80, 255],       # terrain              light green          
+                    [150, 240,  80, 255],       # terrain              light green
                     [230, 230, 250, 255],       # manmade              white
                     [  0, 175,   0, 255],       # vegetation           green
                     # [  0, 255, 127, 255],       # ego car              dark cyan
@@ -172,13 +172,17 @@ def save_occ(
                     # [  0, 191, 255, 255]        # ego car
                 ]
             ).astype(np.uint8)
-        elif dataset == 'kitti360':
-            colors = (get_kitti360_colormap()[1:, :] * 255).astype(np.uint8)
         else:
-            colors = (get_kitti_colormap()[1:, :] * 255).astype(np.uint8)
+            raise ValueError(f'error dataset {dataset}')
+
+
+        # elif dataset == 'kitti360':
+        #     colors = (get_kitti360_colormap()[1:, :] * 255).astype(np.uint8)
+        # else:
+        #     colors = (get_kitti_colormap()[1:, :] * 255).astype(np.uint8)
 
         plt_plot_fov.module_manager.scalar_lut_manager.lut.table = colors
-    
+
     scene = figure.scene
     scene.camera.position = [118.7195754824976, 118.70290907014409, 120.11124225247899]
     scene.camera.focal_point = [0.008333206176757812, -0.008333206176757812, 1.399999976158142]
@@ -327,12 +331,12 @@ def get_nuscenes_colormap():
             [255,   0,   0, 255],       # pedestrian           red
             [255, 240, 150, 255],       # traffic_cone         light yellow
             [135,  60,   0, 255],       # trailer              brown
-            [160,  32, 240, 255],       # truck                purple                
+            [160,  32, 240, 255],       # truck                purple
             [255,   0, 255, 255],       # driveable_surface    dark pink
             # [175,   0,  75, 255],       # other_flat           dark red
             [139, 137, 137, 255],
             [ 75,   0,  75, 255],       # sidewalk             dard purple
-            [150, 240,  80, 255],       # terrain              light green          
+            [150, 240,  80, 255],       # terrain              light green
             [230, 230, 250, 255],       # manmade              white
             [  0, 175,   0, 255],       # vegetation           green
             # [  0, 255, 127, 255],       # ego car              dark cyan
@@ -373,7 +377,7 @@ def save_gaussian(save_dir, gaussian, name, scalar=1.5, ignore_opa=False, filter
             binr = zbins[idx + 1]
             zmsk = (means[:, 2] < binl) | (means[:, 2] > binr)
             mask = mask & zmsk
-        
+
         z_small_mask = scales[:, 2] > 0.1
         mask = z_small_mask & mask
 
@@ -384,7 +388,7 @@ def save_gaussian(save_dir, gaussian, name, scalar=1.5, ignore_opa=False, filter
     opas = opas[mask]
     pred = pred[mask]
 
-    # number of ellipsoids 
+    # number of ellipsoids
     ellipNumber = means.shape[0]
 
     #set colour map so each ellipsoid as a unique colour
@@ -403,11 +407,11 @@ def save_gaussian(save_dir, gaussian, name, scalar=1.5, ignore_opa=False, filter
         [50.0, -50.0, 0.0],
         [50.0, 50.0, 0.0],
     ])
-    ax.plot_surface(border[:, 0:1], border[:, 1:2], border[:, 2:], 
+    ax.plot_surface(border[:, 0:1], border[:, 1:2], border[:, 2:],
         rstride=1, cstride=1, color=[0, 0, 0, 1], linewidth=0, alpha=0., shade=True)
 
     for indx in range(ellipNumber):
-        
+
         center = means[indx]
         radii = scales[indx] * scalar
         rot_matrix = rotations[indx]
@@ -427,13 +431,13 @@ def save_gaussian(save_dir, gaussian, name, scalar=1.5, ignore_opa=False, filter
         xyz = xyz + center[None, None, ...]
 
         ax.plot_surface(
-            xyz[..., 1], -xyz[..., 0], xyz[..., 2], 
+            xyz[..., 1], -xyz[..., 0], xyz[..., 2],
             rstride=1, cstride=1, color=sem_cmap[pred[indx]], linewidth=0, alpha=opas[indx], shade=True)
 
     plt.axis("equal")
     # plt.gca().set_box_aspect([1, 1, 1])
     ax.grid(False)
-    ax.set_axis_off()    
+    ax.set_axis_off()
 
     filepath = os.path.join(save_dir, f'{name}.png')
     plt.savefig(filepath)

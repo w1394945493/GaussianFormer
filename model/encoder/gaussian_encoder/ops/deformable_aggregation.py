@@ -1,8 +1,9 @@
 import torch
 from torch.autograd.function import Function, once_differentiable
 
-from . import deformable_aggregation_ext
-
+# from . import deformable_aggregation_ext
+# todo 
+import deformable_aggregation_ext
 
 class DeformableAggregationFunction(Function):
     @staticmethod

@@ -1,7 +1,19 @@
+# Copyright (c) OpenMMLab. All rights reserved.
+# 设置进程名
+from setproctitle import setproctitle
+setproctitle("wys")
+
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+# os.environ['RANK'] = '0'
+import argparse
+
 # try:
 #     from vis import save_occ
 # except:
 #     print('Load Occupancy Visualization Tools Failed.')
+# from vis import save_occ
+
 import time, argparse, os.path as osp, os
 import torch, numpy as np
 import torch.distributed as dist
@@ -38,7 +50,7 @@ def main(local_rank, args):
         gpus = torch.cuda.device_count()  # gpus per node
         print(f"tcp://{ip}:{port}")
         dist.init_process_group(
-            backend="nccl", init_method=f"tcp://{ip}:{port}", 
+            backend="nccl", init_method=f"tcp://{ip}:{port}",
             world_size=hosts * gpus, rank=rank * gpus + local_rank)
         world_size = dist.get_world_size()
         cfg.gpu_ids = range(world_size)
@@ -50,7 +62,7 @@ def main(local_rank, args):
     else:
         distributed = False
         world_size = 1
-    
+
     writer = None
     timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
     log_file = osp.join(args.work_dir, f'{timestamp}.log')
@@ -91,14 +103,14 @@ def main(local_rank, args):
         cfg.val_loader,
         dist=distributed,
         val_only=True)
-    
+
     # resume and load
     cfg.resume_from = ''
     if osp.exists(osp.join(args.work_dir, 'latest.pth')):
         cfg.resume_from = osp.join(args.work_dir, 'latest.pth')
     if args.resume_from:
         cfg.resume_from = args.resume_from
-    
+
     logger.info('resume from: ' + cfg.resume_from)
     logger.info('work dir: ' + args.work_dir)
 
@@ -119,7 +131,7 @@ def main(local_rank, args):
             from misc.checkpoint_util import refine_load_from_sd
             print(raw_model.load_state_dict(
                 refine_load_from_sd(state_dict), strict=False))
-        
+
     print_freq = cfg.print_freq
     from misc.metric_util import MeanIoU
     miou_metric = MeanIoU(
@@ -137,7 +149,7 @@ def main(local_rank, args):
 
     with torch.no_grad():
         for i_iter_val, data in enumerate(val_dataset_loader):
-            
+
             for k in list(data.keys()):
                 if isinstance(data[k], torch.Tensor):
                     data[k] = data[k].cuda()
@@ -148,6 +160,7 @@ def main(local_rank, args):
                     pred_occ = pred
                     gt_occ = result_dict['sampled_label'][idx]
                     occ_mask = result_dict['occ_mask'][idx].flatten()
+
                     # if args.vis_occ:
                     #     os.makedirs(os.path.join(args.work_dir, 'vis'), exist_ok=True)
                     #     save_occ(
@@ -162,17 +175,17 @@ def main(local_rank, args):
                     #         True, 0)
                     miou_metric._after_step(pred_occ, gt_occ, occ_mask)
                     # breakpoint()
-            
+
             if i_iter_val % print_freq == 0 and local_rank == 0:
                 logger.info('[EVAL] Iter %5d'%(i_iter_val))
-                    
+
     miou, iou2 = miou_metric._after_epoch()
     logger.info(f'mIoU: {miou}, iou2: {iou2}')
     miou_metric.reset()
-    
+
     if writer is not None:
         writer.close()
-        
+
 
 if __name__ == '__main__':
     # Training settings
@@ -183,7 +196,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=42)
     parser.add_argument('--vis-occ', action='store_true', default=False)
     args = parser.parse_args()
-    
+
     ngpus = torch.cuda.device_count()
     args.gpus = ngpus
     print(args)

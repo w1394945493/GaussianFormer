@@ -8,11 +8,11 @@ from typing import List, Optional
 from ...utils.safe_ops import safe_sigmoid
 from ...utils.utils import get_rotation_matrix
 from .utils import linear_relu_ln
-try:
-    from .ops import DeformableAggregationFunction as DAF
-except:
-    DAF = None
-
+# try:
+#     from .ops import DeformableAggregationFunction as DAF
+# except:
+#     DAF = None
+from .ops import DeformableAggregationFunction as DAF
 
 @MODELS.register_module()
 class SparseGaussian3DKeyPointsGenerator(BaseModule):
@@ -63,7 +63,7 @@ class SparseGaussian3DKeyPointsGenerator(BaseModule):
                 - 0.5
             )
             scale = torch.cat([scale, learnable_scale * self.learnable_fixed_scale], dim=-2)
-        
+
         gs_scales = anchor[..., None, 3:6]
         if self.scale_act == "sigmoid":
             gs_scales = safe_sigmoid(gs_scales)
@@ -72,7 +72,7 @@ class SparseGaussian3DKeyPointsGenerator(BaseModule):
         key_points = scale * gs_scales
         rots = anchor[..., 6:10]
         rotation_mat = get_rotation_matrix(rots).transpose(-1, -2)
-        
+
         key_points = torch.matmul(
             rotation_mat[:, :, None], key_points[..., None]
         ).squeeze(-1)
@@ -80,12 +80,12 @@ class SparseGaussian3DKeyPointsGenerator(BaseModule):
         xyz = anchor[..., :3]
         if self.xyz_act == 'sigmoid':
             xyz = safe_sigmoid(xyz)
-        
+
         xxx = xyz[..., 0] * (self.pc_range[3] - self.pc_range[0]) + self.pc_range[0]
         yyy = xyz[..., 1] * (self.pc_range[4] - self.pc_range[1]) + self.pc_range[1]
         zzz = xyz[..., 2] * (self.pc_range[5] - self.pc_range[2]) + self.pc_range[2]
         xyz = torch.stack([xxx, yyy, zzz], dim=-1)
-        
+
         key_points = key_points + xyz.unsqueeze(2)
         return key_points
 

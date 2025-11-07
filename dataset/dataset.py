@@ -35,6 +35,7 @@ class NuScenesDataset(Dataset):
         ],
     ):
         self.data_path = data_root
+        # todo ---------------------------#
         data = mmengine.load(imageset)
         self.scene_infos = data['infos']
         self.keyframes = data['metadata']
@@ -46,7 +47,7 @@ class NuScenesDataset(Dataset):
         for t in pipeline:
             self.pipeline.append(OPENOCC_TRANSFORMS.build(t))
 
-        self.sensor_types = ['CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_FRONT_LEFT', 
+        self.sensor_types = ['CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_FRONT_LEFT',
             'CAM_BACK', 'CAM_BACK_LEFT', 'CAM_BACK_RIGHT']
         self.return_keys = return_keys
         if vis_scene_index >= 0:
@@ -100,6 +101,7 @@ class NuScenesDataset(Dataset):
         return resize, resize_dims, crop, flip, rotate
 
     def __getitem__(self, index):
+        # todo -------------------------------------#
         scene_token, index = self.keyframes[index]
         info = deepcopy(self.scene_infos[scene_token][index])
         input_dict = self.get_data_info(info)
@@ -108,10 +110,10 @@ class NuScenesDataset(Dataset):
             input_dict["aug_configs"] = self._sample_augmentation()
         for t in self.pipeline:
             input_dict = t(input_dict)
-        
+
         return_dict = {k: input_dict[k] for k in self.return_keys}
         return return_dict
-    
+
     def get_data_info(self, info):
         f = 0.0055
         image_paths = []
@@ -148,7 +150,7 @@ class NuScenesDataset(Dataset):
             cam_positions.append(cam_position.flatten()[:3])
             focal_position = img2lidar @ viewpad @ np.array([0., 0., f, 1.]).reshape([4, 1])
             focal_positions.append(focal_position.flatten()[:3])
-            
+
         input_dict =dict(
             # sample_idx=info["token"],
             sample_idx=info.get("token", ""),

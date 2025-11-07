@@ -1,0 +1,42 @@
+{
+    // 使用 IntelliSense 了解相关属性。
+    // 悬停以查看现有属性的描述。
+    // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "generate_mini_occ_nuscenes",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lianghao/wangyushen/Projects/GaussianFormer/tools/generate_occupancy_nuscenes/generate_mini_occ_nuscenes.py",
+            "args": [
+                "--config_path",
+                "/home/lianghao/wangyushen/Projects/GaussianFormer/tools/generate_occupancy_nuscenes/config.yaml",
+                "--label_mapping",
+                "/home/lianghao/wangyushen/Projects/GaussianFormer/tools/generate_occupancy_nuscenes/nuscences.yaml",
+                "--version",
+                "v1.0-mini",
+                "--dataroot",
+                "/home/lianghao/wangyushen/data/wangyushen/Datasets/data/v1.0-mini",
+                "--save_path",
+                "/home/lianghao/wangyushen/data/wangyushen/Datasets/data/gt_occ_v1.0-mini",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "eval",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lianghao/wangyushen/Projects/GaussianFormer/eval.py",
+            "args": [
+                "--py-config",
+                "/home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py",
+                "--work-dir",
+                "/home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/test/test_debug",
+                "--resume-from",
+                "/home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth",
+            ],
+            "console": "integratedTerminal"
+        },
+    ]
+}
