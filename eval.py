@@ -8,11 +8,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 # os.environ['RANK'] = '0'
 import argparse
 
-# try:
-#     from vis import save_occ
-# except:
-#     print('Load Occupancy Visualization Tools Failed.')
-# from vis import save_occ
+
 
 import time, argparse, os.path as osp, os
 import torch, numpy as np
@@ -25,10 +21,29 @@ from mmseg.models import build_segmentor
 
 import warnings
 warnings.filterwarnings("ignore")
+from tqdm import tqdm
 
+import pickle
 
+# from vis import save_occ
 def pass_print(*args, **kwargs):
     pass
+
+
+def save_occ(pred_occ,gt_occ,file_path):
+    output = dict(
+        occ_pred = pred_occ.cpu().numpy(),
+        occ_gt = gt_occ.cpu().numpy(),
+    )
+    # torch.save(output, file_path)
+    with open(file_path, 'wb') as f:
+        pickle.dump(output, f)
+
+
+
+
+
+
 
 def main(local_rank, args):
     # global settings
@@ -39,6 +54,7 @@ def main(local_rank, args):
     # load config
     cfg = Config.fromfile(args.py_config)
     cfg.work_dir = args.work_dir
+    os.makedirs(args.work_dir,exist_ok=True)
 
     # init DDP
     if args.gpus > 1:
@@ -148,12 +164,13 @@ def main(local_rank, args):
     os.environ['eval'] = 'true'
 
     with torch.no_grad():
-        for i_iter_val, data in enumerate(val_dataset_loader):
+        for i_iter_val, data in tqdm(enumerate(val_dataset_loader),total=len(val_dataset_loader),desc="Processing"):
 
             for k in list(data.keys()):
                 if isinstance(data[k], torch.Tensor):
                     data[k] = data[k].cuda()
             input_imgs = data.pop('img')
+            # todo -------------------------#
             result_dict = my_model(imgs=input_imgs, metas=data)
             if 'final_occ' in result_dict:
                 for idx, pred in enumerate(result_dict['final_occ']):
@@ -161,8 +178,24 @@ def main(local_rank, args):
                     gt_occ = result_dict['sampled_label'][idx]
                     occ_mask = result_dict['occ_mask'][idx].flatten()
 
-                    # if args.vis_occ:
-                    #     os.makedirs(os.path.join(args.work_dir, 'vis'), exist_ok=True)
+                    # todo --------------------------#
+                    # todo 可视化
+                    if args.vis_occ:
+                        save_dir = os.path.join(args.work_dir, 'vis')
+                        os.makedirs(save_dir, exist_ok=True)
+
+                        scene_token,token = data['scene_token'][idx],data['token'][idx]
+                        file_name = f'{scene_token}_{token}'
+                        # scene_token,sample_idx,token = data['scene_token'][idx],data['sample_idx'][idx],data['token'][idx]
+                        # file_name = f'{scene_token}_{sample_idx}_{token}'
+                        #  file_path = os.path.join(save_dir,f'{file_name}.pth')
+                        file_path = os.path.join(save_dir,f'{file_name}.pkl')
+                        save_occ(
+                            pred_occ = pred_occ.reshape(200,200,16),
+                            gt_occ = gt_occ.reshape(200, 200, 16),
+                            file_path = file_path
+                        )
+
                     #     save_occ(
                     #         os.path.join(args.work_dir, 'vis'),
                     #         pred_occ.reshape(1, 200, 200, 16),
@@ -173,6 +206,7 @@ def main(local_rank, args):
                     #         gt_occ.reshape(1, 200, 200, 16),
                     #         f'val_{i_iter_val}_gt',
                     #         True, 0)
+
                     miou_metric._after_step(pred_occ, gt_occ, occ_mask)
                     # breakpoint()
 

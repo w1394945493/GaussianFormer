@@ -14,4 +14,5 @@ python eval.py --py-config config/xxxx.py --work-dir out/xxxx/ --resume-from out
 python /home/lianghao/wangyushen/Projects/GaussianFormer/eval.py \
     --py-config /home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py \
     --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/test/test_debug \
-    --resume-from /home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth
+    --resume-from /home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth \
+    --vis-occ

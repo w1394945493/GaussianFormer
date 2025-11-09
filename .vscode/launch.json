@@ -35,6 +35,7 @@
                 "/home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/test/test_debug",
                 "--resume-from",
                 "/home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth",
+                // "--vis-occ",
             ],
             "console": "integratedTerminal"
         },

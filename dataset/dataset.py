@@ -31,7 +31,10 @@ class NuScenesDataset(Dataset):
             'occ_cam_mask',
             'ori_img',
             'cam_positions',
-            'focal_positions'
+            'focal_positions',
+            # 'sample_idx',
+            "scene_token",
+            "token",
         ],
     ):
         self.data_path = data_root
@@ -102,8 +105,10 @@ class NuScenesDataset(Dataset):
 
     def __getitem__(self, index):
         # todo -------------------------------------#
-        scene_token, index = self.keyframes[index]
-        info = deepcopy(self.scene_infos[scene_token][index])
+        # scene_token, index = self.keyframes[index]
+        # info = deepcopy(self.scene_infos[scene_token][index])
+        scene_token, sample_idx = self.keyframes[index]
+        info = deepcopy(self.scene_infos[scene_token][sample_idx])
         input_dict = self.get_data_info(info)
 
         if self.data_aug_conf is not None:
@@ -112,6 +117,7 @@ class NuScenesDataset(Dataset):
             input_dict = t(input_dict)
 
         return_dict = {k: input_dict[k] for k in self.return_keys}
+        return_dict['sample_idx'] = f'{sample_idx}'
         return return_dict
 
     def get_data_info(self, info):
@@ -153,8 +159,11 @@ class NuScenesDataset(Dataset):
 
         input_dict =dict(
             # sample_idx=info["token"],
-            sample_idx=info.get("token", ""),
+            # sample_idx=info.get("token", ""), # todo token
             # occ_path=info["occ_path"],
+            scene_token = info['scene_token'],
+            token = info['token'],
+
             occ_path=info.get("occ_path", ""),
             timestamp=info["timestamp"] / 1e6,
             img_filename=image_paths,

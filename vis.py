@@ -1,22 +1,42 @@
+# import os
+# os.environ['QT_PLUGIN_PATH'] = '/usr/lib/x86_64-linux-gnu/qt5'
+# offscreen = False
+# if os.environ.get('DISP', 'f') == 'f':
+#     try:
+#         from pyvirtualdisplay import Display
+#         display = Display(visible=False, size=(2560, 1440))
+#         display.start()
+#         offscreen = True
+#     except:
+#         print("Failed to start virtual display.")
+
+# try:
+#     from mayavi import mlab
+#     import mayavi
+#     mlab.options.offscreen = offscreen
+#     print("Set mlab.options.offscreen={}".format(mlab.options.offscreen))
+# except:
+#     print("No Mayavi installation found.")
+
+
+
+
 import os
 os.environ['QT_PLUGIN_PATH'] = '/usr/lib/x86_64-linux-gnu/qt5'
-offscreen = False
-if os.environ.get('DISP', 'f') == 'f':
-    try:
-        from pyvirtualdisplay import Display
-        display = Display(visible=False, size=(2560, 1440))
-        display.start()
-        offscreen = True
-    except:
-        print("Failed to start virtual display.")
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 
-try:
-    from mayavi import mlab
-    import mayavi
-    mlab.options.offscreen = offscreen
-    print("Set mlab.options.offscreen={}".format(mlab.options.offscreen))
-except:
-    print("No Mayavi installation found.")
+# offscreen = False
+# if os.environ.get('DISP', 'f') == 'f':
+#     from pyvirtualdisplay import Display
+#     display = Display(visible=False, size=(2560, 1440))
+#     display.start()
+#     offscreen = True
+
+offscreen = True
+from mayavi import mlab
+mlab.options.offscreen = offscreen
+
+
 
 import torch, numpy as np
 import matplotlib
@@ -115,7 +135,7 @@ def save_occ(
             fov_voxels = fov_grid_coords[
                 (fov_grid_coords[:, 3] > 0) & (fov_grid_coords[:, 3] < 20)
             ]
-    print(len(fov_voxels))
+    # print(len(fov_voxels))
 
     figure = mlab.figure(size=(2560, 1440), bgcolor=(1, 1, 1))
     # Draw occupied inside FOV voxels
@@ -180,6 +200,7 @@ def save_occ(
         #     colors = (get_kitti360_colormap()[1:, :] * 255).astype(np.uint8)
         # else:
         #     colors = (get_kitti_colormap()[1:, :] * 255).astype(np.uint8)
+
 
         plt_plot_fov.module_manager.scalar_lut_manager.lut.table = colors
 
