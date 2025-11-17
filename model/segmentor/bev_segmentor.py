@@ -44,13 +44,13 @@ class BEVSegmentor(CustomBaseSegmentor):
 
         B, N, C, H, W = imgs.size()
         imgs = imgs.reshape(B * N, C, H, W)
-        img_feats_backbone = self.img_backbone(imgs)
+        img_feats_backbone = self.img_backbone(imgs) # todo ResNet 得到最后4层特征图
         if isinstance(img_feats_backbone, dict):
             img_feats_backbone = list(img_feats_backbone.values())
         img_feats = []
         for idx in self.img_backbone_out_indices:
             img_feats.append(img_feats_backbone[idx])
-        img_feats = self.img_neck(img_feats)
+        img_feats = self.img_neck(img_feats) # todo FPN
         if isinstance(img_feats, dict):
             secondfpn_out = img_feats["secondfpn_out"][0]
             BN, C, H, W = secondfpn_out.shape
@@ -65,9 +65,9 @@ class BEVSegmentor(CustomBaseSegmentor):
             #     img_feats_reshaped.append(img_feat.unsqueeze(1))
             # else:
             img_feats_reshaped.append(img_feat.view(B, int(BN / B), C, H, W))
-        result.update({'ms_img_feats': img_feats_reshaped})
+        result.update({'ms_img_feats': img_feats_reshaped}) # todo 4层多尺度特征图
         return result
-    
+
     def forward_extra_img_backbone(self, imgs, **kwargs):
         """Extract features of images."""
         B, N, C, H, W = imgs.size()
@@ -97,19 +97,19 @@ class BEVSegmentor(CustomBaseSegmentor):
         """
         if extra_backbone:
             return self.forward_extra_img_backbone(imgs=imgs)
-        
+
         results = {
-            'imgs': imgs,
+            'imgs': imgs, # (b v 3 h w)
             'metas': metas,
             'points': points
         }
         results.update(kwargs)
         outs = self.extract_img_feat(**results)
-        results.update(outs)
+        results.update(outs) # todo outs: dict
 
         # torch.cuda.synchronize()
         # start_time = time.perf_counter()
-        outs = self.lifter(**results)
+        outs = self.lifter(**results) # todo 初始化高斯查询特征,全为0的特征向量
         # torch.cuda.synchronize()
         # elapsed = time.perf_counter() - start_time
         # results.update({"lifter_time": elapsed})

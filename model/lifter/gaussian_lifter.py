@@ -26,11 +26,11 @@ class GaussianLifter(BaseLifter):
         self.xyz_act = xyz_activation
         self.scale_act = scale_activation
         assert not (pts_init and anchor_grad)
-        
+
         xyz = torch.rand(num_anchor, 3, dtype=torch.float)
         if xyz_activation == "sigmoid":
             xyz = safe_inverse_sigmoid(xyz)
-            
+
         scale = torch.rand_like(xyz)
         if scale_activation == "sigmoid":
             scale = safe_inverse_sigmoid(scale)
@@ -69,9 +69,9 @@ class GaussianLifter(BaseLifter):
 
     def forward(self, ms_img_feats, metas, **kwargs):
         batch_size = ms_img_feats[0].shape[0]
-        instance_feature = torch.tile(
+        instance_feature = torch.tile( # todo torch.title: 将一个实例特征向量复制batch_size份
             self.instance_feature[None], (batch_size, 1, 1)
-        )
+        ) # todo (b N 128) eg. N=25600
         if self.pts_init:
             if self.xyz_act == "sigmoid":
                 xyz = safe_inverse_sigmoid(metas['anchor_points'])
@@ -81,7 +81,7 @@ class GaussianLifter(BaseLifter):
             anchor = torch.tile(self.anchor[None], (batch_size, 1, 1))
 
         return {
-            'rep_features': instance_feature,
-            'representation': anchor,
-            'anchor_init': self.anchor.clone()
+            'rep_features': instance_feature, # (b,25600,128)
+            'representation': anchor, # (b, 25600,28)
+            'anchor_init': self.anchor.clone() # (25600,28)
         }

@@ -153,7 +153,9 @@ class DeformableFeatureAggregation(BaseModule):
         **kwargs: dict,
     ):
         bs, num_anchor = instance_feature.shape[:2]
-        key_points = self.kps_generator(anchor, instance_feature)
+        # todo ------------------------#
+        # todo 
+        key_points = self.kps_generator(anchor, instance_feature) # todo instance_feature: 查询向量 + anchor: 相应属性(均值,方差和语义): 高斯属性
         temp_key_points_list = (
             feature_queue
         ) = meta_queue = temp_anchor_embeds = []

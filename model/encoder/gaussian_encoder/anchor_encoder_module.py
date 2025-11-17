@@ -7,8 +7,8 @@ import torch.nn as nn, torch
 @MODELS.register_module()
 class SparseGaussian3DEncoder(BaseModule):
     def __init__(
-        self, 
-        embed_dims: int = 256, 
+        self,
+        embed_dims: int = 256,
         include_opa=True,
         semantics=False,
         semantic_dim=None
@@ -32,22 +32,22 @@ class SparseGaussian3DEncoder(BaseModule):
             self.semantic_start = 10 + int(include_opa)
         else:
             semantic_dim = 0
-        self.semantic_dim = semantic_dim            
+        self.semantic_dim = semantic_dim
         self.output_fc = embedding_layer(self.embed_dims)
 
     def forward(self, box_3d: torch.Tensor):
-        xyz_feat = self.xyz_fc(box_3d[..., :3])
-        scale_feat = self.scale_fc(box_3d[..., 3:6])
-        rot_feat = self.rot_fc(box_3d[..., 6:10])
+        xyz_feat = self.xyz_fc(box_3d[..., :3])  # todo (b,N,3) -> (b,N,128)
+        scale_feat = self.scale_fc(box_3d[..., 3:6]) # todo (b,N,3) -> (b,N,128)
+        rot_feat = self.rot_fc(box_3d[..., 6:10]) # todo (b,N,4) -> (b,N,128)
         if self.include_opa:
-            opacity_feat = self.opacity_fc(box_3d[..., 10:11])
+            opacity_feat = self.opacity_fc(box_3d[..., 10:11]) # todo (b,N,1) -> (b,N,128)
         else:
             opacity_feat = 0.
-        if self.semantics:
+        if self.semantics: # todo 语义标签 17类
             semantic_feat = self.semantics_fc(box_3d[..., self.semantic_start: (self.semantic_start + self.semantic_dim)])
         else:
             semantic_feat = 0.
 
-        output = xyz_feat + scale_feat + rot_feat + opacity_feat + semantic_feat
-        output = self.output_fc(output)
+        output = xyz_feat + scale_feat + rot_feat + opacity_feat + semantic_feat # todo 128
+        output = self.output_fc(output) # todo 全连接层 128 -> 128
         return output

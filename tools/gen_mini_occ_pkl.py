@@ -3,6 +3,7 @@ import mmengine
 from tqdm import tqdm
 from nuscenes.nuscenes import NuScenes
 
+# todo 用于生成GaussFormer使用的pkl文件
 if __name__=='__main__':
 
     ori_mini_val_pkl_path = '/home/lianghao/wangyushen/data/wangyushen/Datasets/data/v1.0-mini/nuscenes_mini_infos_val.pkl'

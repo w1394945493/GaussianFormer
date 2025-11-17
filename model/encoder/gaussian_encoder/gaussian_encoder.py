@@ -58,7 +58,7 @@ class GaussianOccEncoder(BaseEncoder):
                 for op in self.operation_order
             ]
         )
-        
+
     def init_weights(self):
         for i, op in enumerate(self.operation_order):
             if self.layers[i] is None:
@@ -83,9 +83,9 @@ class GaussianOccEncoder(BaseEncoder):
         if isinstance(feature_maps, torch.Tensor):
             feature_maps = [feature_maps]
         instance_feature = rep_features
-        anchor = representation
+        anchor = representation # todo (b,25600,28)
 
-        anchor_embed = self.anchor_encoder(anchor)
+        anchor_embed = self.anchor_encoder(anchor) # todo 锚框编码: 这里锚框定义更为广泛: 包括 高斯属性(3+3+4+1)+语义属性(OCC中是17类)
 
         prediction = []
         for i, op in enumerate(self.operation_order):
@@ -102,9 +102,9 @@ class GaussianOccEncoder(BaseEncoder):
             elif op == "deformable":
                 instance_feature = self.layers[i](
                     instance_feature,
-                    anchor,
-                    anchor_embed,
-                    feature_maps,
+                    anchor, # todo 初始的28维的锚框
+                    anchor_embed, # todo 编码后的锚框: 128维
+                    feature_maps, # todo 多尺度特征图
                     metas,
                 )
             elif "refine" in op:
@@ -113,7 +113,7 @@ class GaussianOccEncoder(BaseEncoder):
                     anchor,
                     anchor_embed,
                 )
-            
+
                 prediction.append({'gaussian': gaussian})
                 if i != len(self.operation_order) - 1:
                     anchor_embed = self.anchor_encoder(anchor)
