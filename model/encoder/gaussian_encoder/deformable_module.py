@@ -53,10 +53,10 @@ class SparseGaussian3DKeyPointsGenerator(BaseModule):
         anchor,
         instance_feature=None,
     ):
-        bs, num_anchor = anchor.shape[:2]
-        fix_scale = anchor.new_tensor(self.fix_scale)
+        bs, num_anchor = anchor.shape[:2] # todo (b,M,28)
+        fix_scale = anchor.new_tensor(self.fix_scale) # todo self.fix_scale: (7,3)
         scale = fix_scale[None, None].tile([bs, num_anchor, 1, 1])
-        if self.num_learnable_pts > 0 and instance_feature is not None:
+        if self.num_learnable_pts > 0 and instance_feature is not None: # todo num_learnable_pts: 2
             learnable_scale = (
                 safe_sigmoid(self.learnable_fc(instance_feature)
                 .reshape(bs, num_anchor, self.num_learnable_pts, 3))
@@ -64,17 +64,17 @@ class SparseGaussian3DKeyPointsGenerator(BaseModule):
             )
             scale = torch.cat([scale, learnable_scale * self.learnable_fixed_scale], dim=-2)
 
-        gs_scales = anchor[..., None, 3:6]
+        gs_scales = anchor[..., None, 3:6] # todo 尺度
         if self.scale_act == "sigmoid":
             gs_scales = safe_sigmoid(gs_scales)
         gs_scales = self.scale_range[0] + (self.scale_range[1] - self.scale_range[0]) * gs_scales
 
         key_points = scale * gs_scales
-        rots = anchor[..., 6:10]
-        rotation_mat = get_rotation_matrix(rots).transpose(-1, -2)
+        rots = anchor[..., 6:10] # (b,25600,4)
+        rotation_mat = get_rotation_matrix(rots).transpose(-1, -2) # todo 根据四元数计算旋转矩阵
 
         key_points = torch.matmul(
-            rotation_mat[:, :, None], key_points[..., None]
+            rotation_mat[:, :, None], key_points[..., None] # (b 25600 1 3 3) x (b 25600 9 3 1) 旋转每个关键点
         ).squeeze(-1)
 
         xyz = anchor[..., :3]
@@ -87,7 +87,7 @@ class SparseGaussian3DKeyPointsGenerator(BaseModule):
         xyz = torch.stack([xxx, yyy, zzz], dim=-1)
 
         key_points = key_points + xyz.unsqueeze(2)
-        return key_points
+        return key_points # todo (b 25600 9 3) 生成一组三维稀疏的高斯关键点
 
 
 @MODELS.register_module()
@@ -154,13 +154,13 @@ class DeformableFeatureAggregation(BaseModule):
     ):
         bs, num_anchor = instance_feature.shape[:2]
         # todo ------------------------#
-        # todo 
+        # todo 生成一组三维稀疏的高斯关键点
         key_points = self.kps_generator(anchor, instance_feature) # todo instance_feature: 查询向量 + anchor: 相应属性(均值,方差和语义): 高斯属性
         temp_key_points_list = (
             feature_queue
         ) = meta_queue = temp_anchor_embeds = []
         if self.use_deformable_func:
-            feature_maps = DAF.feature_maps_format(feature_maps)
+            feature_maps = DAF.feature_maps_format(feature_maps) # todo 把多尺度特征图打包：1.拼接后的特征张量 2.每个尺度对应的空间索引列表 3.每个尺度对应的起始索引列表
 
         for (
             temp_feature_maps,
@@ -174,8 +174,8 @@ class DeformableFeatureAggregation(BaseModule):
             temp_anchor_embeds[::-1] + [anchor_embed],
         ):
             weights, weight_mask = self._get_weights(
-                instance_feature, temp_anchor_embed, metas
-            )
+                instance_feature, temp_anchor_embed, metas # todo 嵌入了相机矩阵
+            ) # todo 把查询特征整合为 (b 25600 num_cam num_level num_pt num_group) 的格式
             if self.use_deformable_func:
                 weights = (
                     weights.permute(0, 1, 4, 2, 3, 5)
@@ -188,7 +188,7 @@ class DeformableFeatureAggregation(BaseModule):
                         self.num_levels,
                         self.num_groups,
                     )
-                )
+                ) # todo (b 25600 num_pts num_cams)
                 weight_mask = (
                     weight_mask.permute(0, 1, 4, 2, 3, 5)
                     .contiguous()
@@ -201,33 +201,36 @@ class DeformableFeatureAggregation(BaseModule):
                         self.num_groups,
                     )
                 )
-                points_2d, mask = self.project_points(
-                    temp_key_points,
-                    temp_metas["projection_mat"],
+                # todo ---------------------------------------------------------#
+                # todo GaussianFormer的思路是：先定义一组三维空间中的高斯点
+                # todo 然后将其投影到二维空间中，进行注意力交互
+                points_2d, mask = self.project_points( # todo 将3DKeypoints投影到2D图像上，获得2D坐标和可见性mask
+                    temp_key_points, # todo (b 25600 num_groups 3)
+                    temp_metas["projection_mat"], 
                     temp_metas.get("image_wh"),
-                )
+                ) # (b 25600 9 3) (b v 4 4) -> (b v 25600 9 2) 6个相机 9个尺度
                 points_2d = points_2d.permute(0, 2, 3, 1, 4).reshape(
-                    bs, num_anchor * self.num_pts, self.num_cams, 2)
-                mask = mask.permute(0, 2, 3, 1)
-                mask = mask[..., None, None] & weight_mask
-                all_miss = mask.sum(dim=[2, 3, 4], keepdim=True) == 0
-                all_miss = all_miss.expand(-1, -1, self.num_pts, self.num_cams, self.num_levels, -1)
-                weights[~mask] = - torch.inf
-                weights[all_miss] = 0.
+                    bs, num_anchor * self.num_pts, self.num_cams, 2) # (b,25600x9 6 2)
+                mask = mask.permute(0, 2, 3, 1) # (b,25600 9 6)
+                mask = mask[..., None, None] & weight_mask # (b 25600 9 6 1 1) (b 25600 9 6 4 4) -> (b 25600 9 6 4 4) 4：4个特征层 4：4个采样点
+                all_miss = mask.sum(dim=[2, 3, 4], keepdim=True) == 0 # 计算每个锚点在所有尺度、相机、特征层和采用点中的掩码值和，若为0，表示该点在所有维度下不可见的
+                all_miss = all_miss.expand(-1, -1, self.num_pts, self.num_cams, self.num_levels, -1) # 扩展一下
+                weights[~mask] = - torch.inf # 将mask为Fasle位置的权重设为负无穷
+                weights[all_miss] = 0. # 进一步将完全不可见的点的权重设置为0
                 weights = weights.flatten(2, 4).softmax(dim=-2).reshape(
                     bs,
                     num_anchor * self.num_pts,
                     self.num_cams,
                     self.num_levels,
-                    self.num_groups)
+                    self.num_groups) # 展平，softmax归一化
                 # weights_clone = weights.detach().clone()
                 # weights_clone[~all_miss.flatten(1, 2)] = 0.
                 # weights = weights - weights_clone
                 weights = weights * (1 - all_miss.flatten(1, 2).float())
-
+                # todo ------------------------------------------#
                 temp_features_next = DAF.apply(
-                    *temp_feature_maps, points_2d, weights
-                ).reshape(bs, num_anchor, self.num_pts, self.embed_dims)
+                    *temp_feature_maps, points_2d, weights  # points_2d (b 25600xnum_pts,num_cam,2) weights: (b 25600xnum_pts,)
+                ).reshape(bs, num_anchor, self.num_pts, self.embed_dims) # 进行特征聚合
             else:
                 temp_features_next = self.feature_sampling(
                     temp_feature_maps,
@@ -239,13 +242,13 @@ class DeformableFeatureAggregation(BaseModule):
                     temp_features_next, weights
                 )
 
-            features = temp_features_next
+            features = temp_features_next # todo (b 25600 9 128)
 
         features = features.sum(dim=2)  # fuse multi-point features
         output = self.proj_drop(self.output_proj(features))
         if self.residual_mode == "add":
             output = output + instance_feature
-        elif self.residual_mode == "cat":
+        elif self.residual_mode == "cat": # todo 'cat'
             output = torch.cat([output, instance_feature], dim=-1)
         return output
 
@@ -256,12 +259,12 @@ class DeformableFeatureAggregation(BaseModule):
             camera_embed = self.camera_encoder(
                 metas["projection_mat"][:, :, :3].reshape(
                     bs, self.num_cams, -1
-                )
-            )
-            feature = feature[:, :, None] + camera_embed[:, None]
+                ) # todo : metas["projection_mat"]: (4 4)
+            ) # todo (b v 128) 相机嵌入
+            feature = feature[:, :, None] + camera_embed[:, None] # todo (b 25600 1 128) -> (b 25600 6 128)
         weights = (
             self.weights_fc(feature)
-            .reshape(bs, num_anchor, -1, self.num_groups)
+            .reshape(bs, num_anchor, -1, self.num_groups) # (b 25600 6 144) -> (b 25600 216 4)
             # .softmax(dim=-2)
             .reshape(
                 bs,
@@ -270,7 +273,7 @@ class DeformableFeatureAggregation(BaseModule):
                 self.num_levels,
                 self.num_pts,
                 self.num_groups,
-            )
+            ) # (b 25600 216 4) -> (b 25600 6 4 9 4)
         )
         if self.training and self.attn_drop > 0:
             # mask = torch.rand(
@@ -287,23 +290,23 @@ class DeformableFeatureAggregation(BaseModule):
         return weights, mask
 
     @staticmethod
-    def project_points(key_points, projection_mat, image_wh=None):
+    def project_points(key_points, projection_mat, image_wh=None): # todo 把3D 点投影到每个相机的2D坐标 + 可见性mask
         bs, num_anchor, num_pts = key_points.shape[:3]
 
         pts_extend = torch.cat(
             [key_points, torch.ones_like(key_points[..., :1])], dim=-1
-        )
+        ) # todo 给3D点补齐齐次坐标  [x y z 1] 4   x (4 4)
         points_2d = torch.matmul(
             projection_mat[:, :, None, None], pts_extend[:, None, ..., None]
-        ).squeeze(-1)
-        depth = points_2d[..., 2]
+        ).squeeze(-1) # (b 6 1 1 4 4) x (b 1 25600 9 4 1)
+        depth = points_2d[..., 2] # todo 深度z
         points_2d = points_2d[..., :2] / torch.clamp(
             points_2d[..., 2:3], min=1e-5
-        )
+        ) # todo 除以深度得到像素坐标 x/z y/z
         if image_wh is not None:
             points_2d = points_2d / image_wh[:, :, None, None]
         mask = (depth > 1e-5) & (points_2d[..., 0] > 0) & (points_2d[..., 0] < 1) & \
-                                (points_2d[..., 1] > 0) & (points_2d[..., 1] < 1)
+                                (points_2d[..., 1] > 0) & (points_2d[..., 1] < 1) # todo 可见性mask：深度是否大于0 是否落在相机范围内
         return points_2d, mask
 
     @staticmethod

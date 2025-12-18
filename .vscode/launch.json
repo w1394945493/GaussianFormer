@@ -39,5 +39,18 @@
             ],
             "console": "integratedTerminal"
         },
+        {
+            "name": "train",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lianghao/wangyushen/Projects/GaussianFormer/train.py",
+            "args": [
+                "--py-config",
+                "/home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py",
+                "--work-dir",
+                "/home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug",
+            ],
+            "console": "integratedTerminal"
+        },
     ]
 }

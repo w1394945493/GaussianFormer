@@ -3,7 +3,7 @@
 # GRAPHDECO research group, https://team.inria.fr/graphdeco
 # All rights reserved.
 #
-# This software is free for non-commercial, research and evaluation use 
+# This software is free for non-commercial, research and evaluation use
 # under the terms of the LICENSE.md file.
 #
 # For inquiries contact  george.drettakis@inria.fr
@@ -15,7 +15,8 @@ import torch.nn.functional as F
 from . import _C
 
 
-class _LocalAggregate(torch.autograd.Function):
+class _LocalAggregate(torch.autograd.Function): # todo 自定义的torch.autograd.Function pytorch要求不能直接调用类本身，而是必须通过.apply来执行forward和自动建立backward图
+    # todo torch.autograd.FunctionL 定义forward和backward的函数模板
     @staticmethod
     def forward(
         ctx,
@@ -44,16 +45,16 @@ class _LocalAggregate(torch.autograd.Function):
         )
         # Invoke C++/CUDA rasterizer
         num_rendered, logits, geomBuffer, binningBuffer, imgBuffer = _C.local_aggregate(*args) # todo
-        
+
         # Keep relevant tensors for backward
         ctx.num_rendered = num_rendered
         ctx.H = H
         ctx.W = W
         ctx.D = D
         ctx.save_for_backward(
-            geomBuffer, 
-            binningBuffer, 
-            imgBuffer, 
+            geomBuffer,
+            binningBuffer,
+            imgBuffer,
             means3D,
             pts,
             points_int,
@@ -117,13 +118,13 @@ class LocalAggregator(nn.Module):
         self.inv_softmax = inv_softmax
 
     def forward(
-        self, 
+        self,
         pts,
-        means3D, 
-        opacities, 
-        semantics, 
-        scales, 
-        cov3D): 
+        means3D,
+        opacities,
+        semantics,
+        scales,
+        cov3D):
 
         assert pts.shape[0] == 1
         pts = pts.squeeze(0)
@@ -143,7 +144,7 @@ class LocalAggregator(nn.Module):
         cov3D = cov3D.flatten(1)[:, [0, 4, 8, 1, 5, 2]]
 
         # Invoke C++/CUDA rasterization routine
-        logits = _LocalAggregate.apply(
+        logits = _LocalAggregate.apply( # todo .apply: pytorch自定义Autograd Function的标准调用形式
             pts,
             points_int,
             means3D,

@@ -174,7 +174,7 @@ def main(local_rank, args):
             result_dict = my_model(imgs=input_imgs, metas=data)
             if 'final_occ' in result_dict:
                 for idx, pred in enumerate(result_dict['final_occ']):
-                    pred_occ = pred
+                    pred_occ = pred # todo (640000)
                     gt_occ = result_dict['sampled_label'][idx]
                     occ_mask = result_dict['occ_mask'][idx].flatten()
 
@@ -206,7 +206,8 @@ def main(local_rank, args):
                     #         gt_occ.reshape(1, 200, 200, 16),
                     #         f'val_{i_iter_val}_gt',
                     #         True, 0)
-
+                    # todo ------------------------#
+                    # todo 评估
                     miou_metric._after_step(pred_occ, gt_occ, occ_mask)
                     # breakpoint()
 

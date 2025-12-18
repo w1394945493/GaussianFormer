@@ -71,7 +71,9 @@ scale_range = [0.08, 0.64]
 xyz_coordinate = 'cartesian'
 phi_activation = 'sigmoid'
 include_opa = True
-load_from = 'ckpts/r101_dcn_fcos3d_pretrain.pth'
+
+# load_from = 'ckpts/r101_dcn_fcos3d_pretrain.pth'
+load_from = '/home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth'
 semantics = True
 semantic_dim = 17
 

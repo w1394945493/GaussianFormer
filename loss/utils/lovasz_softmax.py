@@ -169,7 +169,7 @@ def lovasz_softmax(probas, labels, classes='present', per_image=False, ignore=No
                           for prob, lab in zip(probas, labels))
     else:
         with autocast(False):
-            loss = lovasz_softmax_flat(*flatten_probas(probas, labels, ignore), classes=classes)
+            loss = lovasz_softmax_flat(*flatten_probas(probas, labels, ignore), classes=classes) # todo 剔除了id=17的
     return loss
 
 

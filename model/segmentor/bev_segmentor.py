@@ -104,7 +104,7 @@ class BEVSegmentor(CustomBaseSegmentor):
             'points': points
         }
         results.update(kwargs)
-        outs = self.extract_img_feat(**results)
+        outs = self.extract_img_feat(**results) # todo 提取多尺度图像特征图outs
         results.update(outs) # todo outs: dict
 
         # torch.cuda.synchronize()
@@ -114,9 +114,9 @@ class BEVSegmentor(CustomBaseSegmentor):
         # elapsed = time.perf_counter() - start_time
         # results.update({"lifter_time": elapsed})
 
-        results.update(outs)
+        results.update(outs) # todo 多尺度图像特征图 + 高斯查询特征
         outs = self.encoder(**results)
-        if rep_only:
+        if rep_only: # todo false
             return outs['representation']
         results.update(outs)
         if occ_only and hasattr(self.head, "forward_occ"):

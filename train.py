@@ -1,3 +1,9 @@
+from setproctitle import setproctitle
+setproctitle("wys")
+
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+
 import time, argparse, os.path as osp, os
 import torch, numpy as np
 import torch.distributed as dist
@@ -10,7 +16,9 @@ from mmengine.optim import build_optim_wrapper
 from mmengine.logging import MMLogger
 from mmengine.utils import symlink
 from mmseg.models import build_segmentor
-from timm.scheduler import CosineLRScheduler, MultiStepLRScheduler
+# from timm.scheduler import CosineLRScheduler, MultiStepLRScheduler
+from timm.scheduler import CosineLRScheduler
+
 
 import warnings
 warnings.filterwarnings("ignore")
@@ -107,19 +115,27 @@ def main(local_rank, args):
     optimizer = build_optim_wrapper(my_model, cfg.optimizer)
     loss_func = OPENOCC_LOSS.build(cfg.loss).cuda()
     max_num_epochs = cfg.max_epochs
-    if cfg.get('multisteplr', False):
-        scheduler = MultiStepLRScheduler(
-            optimizer,
-            **cfg.multisteplr_config
-        )
-    else:
-        scheduler = CosineLRScheduler(
-            optimizer,
-            t_initial=len(train_dataset_loader) * max_num_epochs,
-            lr_min=cfg.optimizer["optimizer"]["lr"] * cfg.get("min_lr_ratio", 0.1), #1e-6,
-            warmup_t=cfg.get('warmup_iters', 500),
-            warmup_lr_init=1e-6,
-            t_in_epochs=False)
+    # if cfg.get('multisteplr', False):
+    #     scheduler = MultiStepLRScheduler(
+    #         optimizer,
+    #         **cfg.multisteplr_config
+    #     )
+    # else:
+    #     scheduler = CosineLRScheduler(
+    #         optimizer,
+    #         t_initial=len(train_dataset_loader) * max_num_epochs,
+    #         lr_min=cfg.optimizer["optimizer"]["lr"] * cfg.get("min_lr_ratio", 0.1), #1e-6,
+    #         warmup_t=cfg.get('warmup_iters', 500),
+    #         warmup_lr_init=1e-6,
+    #         t_in_epochs=False)
+    scheduler = CosineLRScheduler(
+        optimizer,
+        t_initial=len(train_dataset_loader) * max_num_epochs,
+        lr_min=cfg.optimizer["optimizer"]["lr"] * cfg.get("min_lr_ratio", 0.1), #1e-6,
+        warmup_t=cfg.get('warmup_iters', 500),
+        warmup_lr_init=1e-6,
+        t_in_epochs=False)
+    
     amp = cfg.get('amp', False)
     if amp:
         scaler = torch.cuda.amp.GradScaler()

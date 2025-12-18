@@ -13,6 +13,13 @@ python eval.py --py-config config/xxxx.py --work-dir out/xxxx/ --resume-from out
 
 python /home/lianghao/wangyushen/Projects/GaussianFormer/eval.py \
     --py-config /home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py \
-    --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/test/test_debug \
+    --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug \
     --resume-from /home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth \
     --vis-occ
+
+# todo GaussianFormer 训练 示例
+python train.py --py-config config/xxxx.py --work-dir out/xxxx
+
+python /home/lianghao/wangyushen/Projects/GaussianFormer/train.py \
+    --py-config /home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py \
+    --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug \

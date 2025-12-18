@@ -468,7 +468,7 @@ def save_ply(points, name):
     point_cloud_original.points = o3d.utility.Vector3dVector(points[:,:3])
     o3d.io.write_point_cloud("{}.ply".format(name), point_cloud_original)
 
-# todo 用于生成OCC占据预测文件
+# todo 用于生成 Surround OCC占据预测文件
 if __name__ == '__main__':
     from argparse import ArgumentParser
     parse = ArgumentParser()

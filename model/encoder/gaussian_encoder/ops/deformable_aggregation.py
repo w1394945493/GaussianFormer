@@ -2,7 +2,7 @@ import torch
 from torch.autograd.function import Function, once_differentiable
 
 # from . import deformable_aggregation_ext
-# todo 
+# todo
 import deformable_aggregation_ext
 
 class DeformableAggregationFunction(Function):
@@ -16,18 +16,18 @@ class DeformableAggregationFunction(Function):
         weights,
     ):
         # output: [bs, num_pts, num_embeds]
-        mc_ms_feat = mc_ms_feat.contiguous().float()
-        spatial_shape = spatial_shape.contiguous().int()
-        scale_start_index = scale_start_index.contiguous().int()
-        sampling_location = sampling_location.contiguous().float()
-        weights = weights.contiguous().float()
+        mc_ms_feat = mc_ms_feat.contiguous().float() # (b v N 128)
+        spatial_shape = spatial_shape.contiguous().int() # (4 2) 4表示4个特征层
+        scale_start_index = scale_start_index.contiguous().int() # (4)
+        sampling_location = sampling_location.contiguous().float() # (b 25600xnum_pts num_cams(v) 2)
+        weights = weights.contiguous().float() # (b 25600xnum_pts num_cams 4 4)
         output = deformable_aggregation_ext.deformable_aggregation_forward(
             mc_ms_feat,
             spatial_shape,
             scale_start_index,
             sampling_location,
             weights,
-        )
+        ) # output: (b 25600xnum_pts 128)
         ctx.save_for_backward(
             mc_ms_feat,
             spatial_shape,

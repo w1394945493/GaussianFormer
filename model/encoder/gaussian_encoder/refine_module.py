@@ -32,7 +32,7 @@ class SparseGaussian3DRefinementModule(BaseModule):
             assert semantic_dim is not None
         else:
             semantic_dim = 0
-                
+
         self.output_dim = 10 + int(include_opa) + semantic_dim
         self.semantic_start = 10 + int(include_opa)
         self.semantic_dim = semantic_dim
@@ -51,7 +51,7 @@ class SparseGaussian3DRefinementModule(BaseModule):
             if xyz_activation == "sigmoid":
                 unit_prob = [4 * unit_prob[i] for i in range(3)]
             self.unit_sigmoid = unit_prob
-        
+
         assert isinstance(refine_manual, list)
         self.refine_state = refine_manual
         assert all([self.refine_state[i] == i for i in range(len(self.refine_state))])
@@ -67,8 +67,8 @@ class SparseGaussian3DRefinementModule(BaseModule):
         anchor: torch.Tensor,
         anchor_embed: torch.Tensor,
     ):
-        output = self.layers(instance_feature + anchor_embed)
-        
+        output = self.layers(instance_feature + anchor_embed) # todo (b 25600 28) 预测得到的高斯属性 3+3+4+1+17
+
         if self.restrict_xyz:
             delta_xyz_sigmoid = output[..., :3]
             delta_xyz_prob = 2 * safe_sigmoid(delta_xyz_sigmoid) - 1
@@ -77,9 +77,9 @@ class SparseGaussian3DRefinementModule(BaseModule):
                 delta_xyz_prob[..., 1] * self.unit_sigmoid[1],
                 delta_xyz_prob[..., 2] * self.unit_sigmoid[2]
             ], dim=-1)
-            output = torch.cat([delta_xyz, output[..., 3:]], dim=-1)
-        
-        if len(self.refine_state) > 0:
+            output = torch.cat([delta_xyz, output[..., 3:]], dim=-1) # todo 将预测得到的xyz拼接到output
+
+        if len(self.refine_state) > 0: # todo 将预测均值和旧均值相加
             refined_part_output = output[..., self.refine_state] + anchor[..., self.refine_state]
             output = torch.cat([refined_part_output, output[..., len(self.refine_state):]], dim=-1)
 
@@ -87,37 +87,38 @@ class SparseGaussian3DRefinementModule(BaseModule):
             xyz = output[..., :3]
         else:
             xyz = output[..., :3].clamp(min=1e-6, max=1-1e-6)
-        
+
         if self.scale_act == "sigmoid":
             scale = output[..., 3:6]
         else:
             scale = output[..., 3:6].clamp(min=1e-6, max=1-1e-6)
 
-        rot = torch.nn.functional.normalize(output[..., 6:10], dim=-1)
+        rot = torch.nn.functional.normalize(output[..., 6:10], dim=-1) # todo 四元数：归一化到0-1
         output = torch.cat([xyz, scale, rot, output[..., 10:]], dim=-1)
-        
+
         if self.xyz_act == 'sigmoid':
             xyz = safe_sigmoid(xyz)
         xxx = xyz[..., 0] * (self.pc_range[3] - self.pc_range[0]) + self.pc_range[0]
         yyy = xyz[..., 1] * (self.pc_range[4] - self.pc_range[1]) + self.pc_range[1]
         zzz = xyz[..., 2] * (self.pc_range[5] - self.pc_range[2]) + self.pc_range[2]
         xyz = torch.stack([xxx, yyy, zzz], dim=-1)
-
-        if self.scale_act == 'sigmoid':
-            gs_scales = safe_sigmoid(scale)
-        gs_scales = self.scale_range[0] + (self.scale_range[1] - self.scale_range[0]) * gs_scales
         
-        semantics = output[..., self.semantic_start: (self.semantic_start + self.semantic_dim)]
+        # todo GaussianFormer中，尺度预测与MonoSplat中一致，通过sigmoid归一化
+        if self.scale_act == 'sigmoid': # todo sigmoid
+            gs_scales = safe_sigmoid(scale) # todo 将scale限制到-9.21 9.21 然后进行sigmoid归一化 gs_scales: (b 25600 3)
+        gs_scales = self.scale_range[0] + (self.scale_range[1] - self.scale_range[0]) * gs_scales # todo self.scale_range: 0.08，0.64 
+
+        semantics = output[..., self.semantic_start: (self.semantic_start + self.semantic_dim)] # todo (b 25600 17)
         if self.semantics_activation == 'softmax':
             semantics = semantics.softmax(dim=-1)
-        elif self.semantics_activation == 'softplus':
-            semantics = F.softplus(semantics)
-        
+        elif self.semantics_activation == 'softplus': # todo softplus
+            semantics = F.softplus(semantics) # todo log(1+e^x) semantics: (b 25600 17) softplus: 逐元素激活，将 任意实数 映射到 严格实数
+
         gaussian = GaussianPrediction(
             means=xyz,
             scales=gs_scales,
             rotations=rot,
-            opacities=safe_sigmoid(output[..., 10: (10 + int(self.include_opa))]),
+            opacities=safe_sigmoid(output[..., 10: (10 + int(self.include_opa))]), # (b 25600 1) # todo include_opa: True
             semantics=semantics
         )
         return output, gaussian #, semantics
@@ -131,7 +132,7 @@ class SparseGaussian3DRefinementModule(BaseModule):
     #         xyz = torch.cat([xy, z], dim=-1)
     #     else:
     #         raise NotImplementedError
-        
+
     #     if self.xyz_coordinate == 'polar':
     #         rrr = xyz[..., 0] * (self.pc_range[3] - self.pc_range[0]) + self.pc_range[0]
     #         theta = xyz[..., 1] * (self.pc_range[4] - self.pc_range[1]) + self.pc_range[1]
@@ -147,13 +148,13 @@ class SparseGaussian3DRefinementModule(BaseModule):
 
     #     gs_scales = safe_sigmoid(output[..., 3:6])
     #     gs_scales = self.scale_range[0] + (self.scale_range[1] - self.scale_range[0]) * gs_scales
-        
+
     #     semantics = output[..., self.semantic_start: (self.semantic_start + self.semantic_dim)]
     #     if self.semantics_activation == 'softmax':
     #         semantics = semantics.softmax(dim=-1)
     #     elif self.semantics_activation == 'softplus':
     #         semantics = F.softplus(semantics)
-        
+
     #     gaussian = GaussianPrediction(
     #         means=xyz,
     #         scales=gs_scales,

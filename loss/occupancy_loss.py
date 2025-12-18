@@ -112,34 +112,36 @@ class OccupancyLoss(BaseLoss):
 
         for semantics in pred_occ:
             if occ_mask is not None:
-                semantics = semantics.transpose(1, 2)[occ_mask][None].transpose(1, 2) # 1, c, n
+                semantics = semantics.transpose(1, 2)[occ_mask][None].transpose(1, 2) # 1, c, n # todo 剔除mask
             loss_dict = {}
             # semantics = semantics.transpose(0, 1).unsqueeze(0)
             if self.use_focal_loss:
                 loss_dict['loss_voxel_ce'] = self.loss_voxel_ce_weight * \
                     self.focal_loss(semantics, sampled_label, sampled_xyz, self.class_weights.type_as(semantics), ignore_index=255)
             else:
-                if self.lovasz_use_softmax:
+                if self.lovasz_use_softmax: # todo 计算了交叉熵损失
+                    # todo ---------------------------------------------------------------------#
+                    # todo 交叉熵损失
                     loss_dict['loss_voxel_ce'] = self.loss_voxel_ce_weight * \
-                        CE_ssc_loss(semantics, sampled_label, self.class_weights.type_as(semantics), ignore_index=255)
+                        CE_ssc_loss(semantics, sampled_label, self.class_weights.type_as(semantics), ignore_index=255) # todo semantics: (b num_classes g) sampled_label: (b g)
                 else:
                     loss_dict['loss_voxel_ce'] = self.loss_voxel_ce_weight * CE_wo_softmax(
                         semantics, sampled_label, self.class_weights.type_as(semantics), ignore_index=255)
-            if self.use_sem_geo_scal_loss:
+            if self.use_sem_geo_scal_loss: # todo False
                 if self.lovasz_use_softmax:
                     scal_input = torch.softmax(semantics, dim=1)
                 else:
                     scal_input = semantics
                 loss_dict['loss_voxel_sem_scal'] = self.loss_voxel_sem_scal_weight * sem_scal_loss(scal_input.clone(), sampled_label, ignore_index=255)
                 loss_dict['loss_voxel_geo_scal'] = self.loss_voxel_geo_scal_weight * geo_scal_loss(scal_input.clone(), sampled_label, ignore_index=255, non_empty_idx=self.empty_label)
-            if self.use_lovasz_loss:
-                if self.lovasz_use_softmax:
-                    lovasz_input = torch.softmax(semantics, dim=1)
+            if self.use_lovasz_loss: # todo True
+                if self.lovasz_use_softmax: # todo True
+                    lovasz_input = torch.softmax(semantics, dim=1) # todo (b num_classes g)
                 else:
                     lovasz_input = semantics
                 loss_dict['loss_voxel_lovasz'] = self.loss_voxel_lovasz_weight * lovasz_softmax(
                     lovasz_input.transpose(1, 2).flatten(0, 1), sampled_label.flatten(), ignore=self.lovasz_ignore)
-            if self.use_dice_loss:
+            if self.use_dice_loss: # todo False
                 loss_dict['loss_voxel_dice'] = self.dice_loss(semantics, sampled_label)
 
             loss = 0.
@@ -173,7 +175,7 @@ def CE_ssc_loss(pred, target, class_weights=None, ignore_index=255):
     # embed()
     # exit()
     with autocast(False):
-        loss = criterion(pred, target.long())
+        loss = criterion(pred, target.long()) # todo pred: (b num_classes g) target: (b,g)
 
     return loss
 
