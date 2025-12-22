@@ -13,7 +13,7 @@ class GaussianLifter(BaseLifter):
         anchor_grad=True,
         feat_grad=True,
         semantics=False,
-        semantic_dim=None,
+        semantic_dim=None, # todo 17维度，没有包含背景类
         include_opa=True,
         pts_init=False,
         xyz_activation="sigmoid",
@@ -27,19 +27,19 @@ class GaussianLifter(BaseLifter):
         self.scale_act = scale_activation
         assert not (pts_init and anchor_grad)
 
-        xyz = torch.rand(num_anchor, 3, dtype=torch.float)
+        xyz = torch.rand(num_anchor, 3, dtype=torch.float) # todo (25600 3) 生成0-1之间的随机数
         if xyz_activation == "sigmoid":
-            xyz = safe_inverse_sigmoid(xyz)
+            xyz = safe_inverse_sigmoid(xyz) # todo 将0-1反向映射回 -∞ - +∞
 
         scale = torch.rand_like(xyz)
         if scale_activation == "sigmoid":
-            scale = safe_inverse_sigmoid(scale)
+            scale = safe_inverse_sigmoid(scale) # todo 将0-1反向映射回 -∞ - +∞
 
-        rots = torch.zeros(num_anchor, 4, dtype=torch.float)
+        rots = torch.zeros(num_anchor, 4, dtype=torch.float) # todo 初始的旋转四元数 [1 0 0 0]
         rots[:, 0] = 1
 
         if include_opa:
-            opacity = safe_inverse_sigmoid(0.5 * torch.ones((num_anchor, 1), dtype=torch.float))
+            opacity = safe_inverse_sigmoid(0.5 * torch.ones((num_anchor, 1), dtype=torch.float)) # todo 初始透明度 全为0
         else:
             opacity = torch.ones((num_anchor, 0), dtype=torch.float)
 
@@ -47,11 +47,14 @@ class GaussianLifter(BaseLifter):
             assert semantic_dim is not None
         else:
             semantic_dim = 0
-        semantic = torch.randn(num_anchor, semantic_dim, dtype=torch.float)
+        semantic = torch.randn(num_anchor, semantic_dim, dtype=torch.float) # todo 正态分布，大部分在0-1之间
 
-        anchor = torch.cat([xyz, scale, rots, opacity, semantic], dim=-1)
+        anchor = torch.cat([xyz, scale, rots, opacity, semantic], dim=-1) # todo (25600,3+3+4+1+17=28)
 
         self.num_anchor = num_anchor
+        # todo -------------------------------------------------#
+        # todo 采用可学习的初始化方式：
+        # todo 论文C.初始化方式对对模型性能具有重要影响：包括：均匀分布初始化，预测伪点云初始化，真实点云初始化
         self.anchor = nn.Parameter(
             torch.tensor(anchor, dtype=torch.float32),
             requires_grad=anchor_grad,
@@ -69,16 +72,16 @@ class GaussianLifter(BaseLifter):
 
     def forward(self, ms_img_feats, metas, **kwargs):
         batch_size = ms_img_feats[0].shape[0]
-        instance_feature = torch.tile( # todo torch.title: 将一个实例特征向量复制batch_size份
+        instance_feature = torch.tile( # todo torch.title: 复制张量
             self.instance_feature[None], (batch_size, 1, 1)
         ) # todo (b N 128) eg. N=25600
-        if self.pts_init:
+        if self.pts_init: # todo False
             if self.xyz_act == "sigmoid":
                 xyz = safe_inverse_sigmoid(metas['anchor_points'])
             anchor = torch.cat([
                 xyz, torch.tile(self.anchor[None, :, 3:], (batch_size, 1, 1))], dim=-1)
         else:
-            anchor = torch.tile(self.anchor[None], (batch_size, 1, 1))
+            anchor = torch.tile(self.anchor[None], (batch_size, 1, 1)) # todo self.anchor: [25600,28]
 
         return {
             'rep_features': instance_feature, # (b,25600,128)

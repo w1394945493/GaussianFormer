@@ -31,7 +31,7 @@ class MeanIoU:
         self.total_seen = torch.zeros(self.num_classes+1).cuda()
         self.total_correct = torch.zeros(self.num_classes+1).cuda()
         self.total_positive = torch.zeros(self.num_classes+1).cuda()
-
+        
     def _after_step(self, outputs, targets, mask=None):
         # outputs = outputs[targets != self.ignore_label]
         # targets = targets[targets != self.ignore_label]

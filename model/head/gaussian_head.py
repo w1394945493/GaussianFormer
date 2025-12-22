@@ -25,8 +25,8 @@ class GaussianHead(BaseTaskHead):
     ):
         super().__init__(init_cfg)
 
-        self.num_classes = num_classes
-        self.use_localaggprob = use_localaggprob
+        self.num_classes = num_classes # todo 18
+        self.use_localaggprob = use_localaggprob # todo False
         if use_localaggprob: # False
             if use_localaggprob_fast:
                 import local_aggregate_prob_fast
@@ -53,7 +53,7 @@ class GaussianHead(BaseTaskHead):
 
         if apply_loss_type == 'all':
             self.apply_loss_type = 'all'
-        elif 'random' in apply_loss_type:
+        elif 'random' in apply_loss_type: # todo random_1
             self.apply_loss_type = 'random'
             self.random_apply_loss_layers = int(apply_loss_type.split('_')[1])
         elif 'fixed' in apply_loss_type:

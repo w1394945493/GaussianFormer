@@ -4,7 +4,7 @@ from setproctitle import setproctitle
 setproctitle("wys")
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "6"
 # os.environ['RANK'] = '0'
 import argparse
 
@@ -150,17 +150,17 @@ def main(local_rank, args):
                 refine_load_from_sd(state_dict), strict=False))
 
     print_freq = cfg.print_freq
-    from misc.metric_util import MeanIoU
-    miou_metric = MeanIoU(
-        list(range(1, 17)),
-        17, #17,
-        ['barrier', 'bicycle', 'bus', 'car', 'construction_vehicle',
-         'motorcycle', 'pedestrian', 'traffic_cone', 'trailer', 'truck',
-         'driveable_surface', 'other_flat', 'sidewalk', 'terrain', 'manmade',
-         'vegetation'],
-         True, 17, filter_minmax=False)
+    # from misc.metric_util import MeanIoU
+    # miou_metric = MeanIoU(
+    #     list(range(1, 17)),
+    #     17, #17,
+    #     ['barrier', 'bicycle', 'bus', 'car', 'construction_vehicle',
+    #      'motorcycle', 'pedestrian', 'traffic_cone', 'trailer', 'truck',
+    #      'driveable_surface', 'other_flat', 'sidewalk', 'terrain', 'manmade',
+    #      'vegetation'],
+    #      True, 17, filter_minmax=False)
     
-    miou_metric.reset()
+    # miou_metric.reset()
 
     my_model.eval()
     os.environ['eval'] = 'true'
@@ -181,7 +181,7 @@ def main(local_rank, args):
                 for idx, pred in enumerate(result_dict['final_occ']):
                     pred_occ = pred # todo (640000)
                     gt_occ = result_dict['sampled_label'][idx]
-                    occ_mask = result_dict['occ_mask'][idx].flatten()
+                    # occ_mask = result_dict['occ_mask'][idx].flatten()
 
                     # todo --------------------------#
                     # todo 可视化
@@ -196,7 +196,7 @@ def main(local_rank, args):
                         #  file_path = os.path.join(save_dir,f'{file_name}.pth')
                         file_path = os.path.join(save_dir,f'{file_name}.pkl')
                         save_occ(
-                            pred_occ = pred_occ.reshape(200, 200, 16),
+                            pred_occ = pred_occ.reshape(200,200,16),
                             gt_occ = gt_occ.reshape(200, 200, 16),
                             file_path = file_path
                         )
@@ -213,15 +213,15 @@ def main(local_rank, args):
                     #         True, 0)
                     # todo ------------------------#
                     # todo 评估
-                    miou_metric._after_step(pred_occ, gt_occ, occ_mask)
+                    # miou_metric._after_step(pred_occ, gt_occ, occ_mask)
                     # breakpoint()
 
             if i_iter_val % print_freq == 0 and local_rank == 0:
                 logger.info('[EVAL] Iter %5d'%(i_iter_val))
 
-    miou, iou2 = miou_metric._after_epoch()
-    logger.info(f'mIoU: {miou}, iou2: {iou2}')
-    miou_metric.reset()
+    # miou, iou2 = miou_metric._after_epoch()
+    # logger.info(f'mIoU: {miou}, iou2: {iou2}')
+    # miou_metric.reset()
 
     if writer is not None:
         writer.close()

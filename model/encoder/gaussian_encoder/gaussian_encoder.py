@@ -23,7 +23,7 @@ class GaussianOccEncoder(BaseEncoder):
         **kwargs,
     ):
         super().__init__(init_cfg)
-        self.num_decoder = num_decoder
+        self.num_decoder = num_decoder # todo 4
 
         if operation_order is None:
             operation_order = [
@@ -35,7 +35,7 @@ class GaussianOccEncoder(BaseEncoder):
                 "norm",
                 "refine",
             ] * num_decoder
-        self.operation_order = operation_order
+        self.operation_order = operation_order # todo ['deformable', 'ffn', 'norm', 'refine', 'spconv', 'norm',| 'deformable', 'ffn', 'norm', 'refine', 'spconv', 'norm',| 'deformable', 'ffn', 'norm', 'refine', 'spconv', 'norm',| 'deformable', 'ffn', 'norm', 'refine']
 
         # =========== build modules ===========
         def build(cfg, registry):

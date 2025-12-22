@@ -24,6 +24,22 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "demo",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lianghao/wangyushen/Projects/GaussianFormer/demo.py",
+            "args": [
+                "--py-config",
+                "/home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py",
+                "--work-dir",
+                "/home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug",
+                "--resume-from",
+                "/home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth",
+                // "--vis-occ",
+            ],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "eval",
             "type": "debugpy",
             "request": "launch",
@@ -32,7 +48,7 @@
                 "--py-config",
                 "/home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py",
                 "--work-dir",
-                "/home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/test/test_debug",
+                "/home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug",
                 "--resume-from",
                 "/home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth",
                 // "--vis-occ",

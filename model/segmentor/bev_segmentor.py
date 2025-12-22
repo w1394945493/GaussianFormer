@@ -107,9 +107,11 @@ class BEVSegmentor(CustomBaseSegmentor):
         outs = self.extract_img_feat(**results) # todo 提取多尺度图像特征图outs
         results.update(outs) # todo outs: dict
 
+        # todo -----------------------------------#
+        # todo self.lifter
         # torch.cuda.synchronize()
         # start_time = time.perf_counter()
-        outs = self.lifter(**results) # todo 初始化高斯查询特征,全为0的特征向量
+        outs = self.lifter(**results) # todo 初始化高斯点属性
         # torch.cuda.synchronize()
         # elapsed = time.perf_counter() - start_time
         # results.update({"lifter_time": elapsed})
