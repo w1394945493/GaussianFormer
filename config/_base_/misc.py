@@ -1,4 +1,6 @@
-print_freq = 50
+# print_freq = 50
+print_freq = 1 # todo 每隔一步记录一次日志
+
 work_dir = None
 load_from = None
 max_epochs = 20

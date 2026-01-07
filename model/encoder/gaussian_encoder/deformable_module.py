@@ -206,8 +206,8 @@ class DeformableFeatureAggregation(BaseModule):
                 # todo 然后将其投影到二维空间中，进行注意力交互
                 points_2d, mask = self.project_points( # todo 将3DKeypoints投影到2D图像上，获得2D坐标和可见性mask
                     temp_key_points, # todo (b 25600 num_groups 3)
-                    temp_metas["projection_mat"], 
-                    temp_metas.get("image_wh"),
+                    temp_metas["projection_mat"],  # todo (b v 4 4)
+                    temp_metas.get("image_wh"), # (b v 2)
                 ) # (b 25600 9 3) (b v 4 4) -> (b v 25600 9 2) 6个相机 9个尺度
                 points_2d = points_2d.permute(0, 2, 3, 1, 4).reshape(
                     bs, num_anchor * self.num_pts, self.num_cams, 2) # (b,25600x9 6 2)

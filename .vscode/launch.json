@@ -66,7 +66,16 @@
                 "--work-dir",
                 "/home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug",
             ],
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
+            "name": "debug",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "/home/lianghao/wangyushen/Projects/GaussianFormer/temp/debug.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
         },
     ]
 }

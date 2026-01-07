@@ -52,7 +52,7 @@ def get_dataloader(
         val_dataset_config)
         
     train_sampler = val_sampler = None
-    if dist:
+    if dist: # todo False
         if iter_resume:
             train_sampler = CustomDistributedSampler(train_wrapper, **train_sampler_config)
         else:
@@ -63,8 +63,8 @@ def get_dataloader(
         dataset=train_wrapper,
         batch_size=train_loader["batch_size"],
         collate_fn=custom_collate_fn_temporal,
-        shuffle=False if dist else train_loader["shuffle"],
-        sampler=train_sampler,
+        shuffle=False if dist else train_loader["shuffle"], # todo dist: False shuffle: True
+        sampler=train_sampler, # todo None: 未使用sampler
         num_workers=train_loader["num_workers"],
         pin_memory=True)
     val_dataset_loader = DataLoader(

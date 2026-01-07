@@ -4,7 +4,7 @@ from setproctitle import setproctitle
 setproctitle("wys")
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+# os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # os.environ['RANK'] = '0'
 import argparse
 
@@ -176,7 +176,7 @@ def main(local_rank, args):
             
             input_imgs = data.pop('img')
             # todo ----------------------------------#
-            result_dict = my_model(imgs=input_imgs, metas=data)
+            result_dict = my_model(imgs=input_imgs, metas=data) # todo input_imgs: (b v 3 h w) h=864 w=1600
             if 'final_occ' in result_dict:
                 for idx, pred in enumerate(result_dict['final_occ']):
                     pred_occ = pred # todo (640000)

@@ -34,10 +34,10 @@ class BEVSegmentor(CustomBaseSegmentor):
             self.lifter.requires_grad_(False)
             if hasattr(self.lifter, "random_anchors"):
                 self.lifter.random_anchors.requires_grad = True
-        if extra_img_backbone is not None:
+        if extra_img_backbone is not None: # todo None
             self.extra_img_backbone = build_backbone(extra_img_backbone)
 
-    def extract_img_feat(self, imgs, **kwargs):
+    def extract_img_feat(self, imgs, **kwargs): # todo imgs: 1, 6, 3, 864, 1600 经过 -mean /std操作
         """Extract features of images."""
         B = imgs.size(0)
         result = {}
@@ -95,7 +95,7 @@ class BEVSegmentor(CustomBaseSegmentor):
         ):
         """Forward training function.
         """
-        if extra_backbone:
+        if extra_backbone: # todo False
             return self.forward_extra_img_backbone(imgs=imgs)
 
         results = {
@@ -104,14 +104,14 @@ class BEVSegmentor(CustomBaseSegmentor):
             'points': points
         }
         results.update(kwargs)
-        outs = self.extract_img_feat(**results) # todo 提取多尺度图像特征图outs
+        outs = self.extract_img_feat(**results) # todo 提取多尺度图像特征图outs:{'ms_img_feats'}: (1, 6, 128, 108, 200) (54 100) (27 50) (14 25) 4个尺度的特征图
         results.update(outs) # todo outs: dict
 
         # todo -----------------------------------#
         # todo self.lifter
         # torch.cuda.synchronize()
         # start_time = time.perf_counter()
-        outs = self.lifter(**results) # todo 初始化高斯点属性
+        outs = self.lifter(**results) # todo 初始化高斯点属性: outs: 'rep_features': (1, 25600, 128) representation: 1, 25600, 28 anchor_init: 25600, 28
         # torch.cuda.synchronize()
         # elapsed = time.perf_counter() - start_time
         # results.update({"lifter_time": elapsed})
@@ -124,6 +124,6 @@ class BEVSegmentor(CustomBaseSegmentor):
         if occ_only and hasattr(self.head, "forward_occ"):
             outs = self.head.forward_occ(**results)
         else:
-            outs = self.head(**results)
+            outs = self.head(**results) # todo self.head: localAggregator
         results.update(outs)
         return results

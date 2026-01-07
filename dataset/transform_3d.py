@@ -63,7 +63,7 @@ class NuScenesAdaptor(object):
 
     def __call__(self, input_dict):
         input_dict["projection_mat"] = np.float32(
-            np.stack(input_dict[self.projection_key])
+            np.stack(input_dict[self.projection_key]) # todo 使用的是lidar2img
         )
         input_dict["image_wh"] = np.ascontiguousarray(
             np.array(input_dict["img_shape"], dtype=np.float32)[:, :2][:, ::-1]
@@ -91,6 +91,8 @@ class ResizeCropFlipImage(object):
                 flip=flip,
                 rotate=rotate,
             )
+            
+            #!----------------------------------------------------#
             mat = np.eye(4)
             mat[:3, :3] = ida_mat
             new_imgs.append(np.array(img).astype(np.float32))

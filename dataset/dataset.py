@@ -121,6 +121,8 @@ class NuScenesDataset(Dataset):
         return return_dict
 
     def get_data_info(self, info):
+        # if info['token'] == 'b5989651183643369174912bc5641d3b':
+        #     print(info['token'])
         f = 0.0055
         image_paths = []
         lidar2img_rts = []
@@ -128,11 +130,11 @@ class NuScenesDataset(Dataset):
         cam_positions = []
         focal_positions = []
 
-        lidar2ego_r = Quaternion(info['data']['LIDAR_TOP']['calib']['rotation']).rotation_matrix
-        lidar2ego = np.eye(4)
+        lidar2ego_r = Quaternion(info['data']['LIDAR_TOP']['calib']['rotation']).rotation_matrix # (3 3)
+        lidar2ego = np.eye(4) # (4 4)单位矩阵
         lidar2ego[:3, :3] = lidar2ego_r
         lidar2ego[:3, 3] = np.array(info['data']['LIDAR_TOP']['calib']['translation']).T
-        ego2lidar = np.linalg.inv(lidar2ego)
+        ego2lidar = np.linalg.inv(lidar2ego) # todo lidar2ego 和 ego2lidar
 
         lidar2global = get_lidar2global(info['data']['LIDAR_TOP']['calib'], info['data']['LIDAR_TOP']['pose'])
         ego2global = np.eye(4)
@@ -157,6 +159,8 @@ class NuScenesDataset(Dataset):
             focal_position = img2lidar @ viewpad @ np.array([0., 0., f, 1.]).reshape([4, 1])
             focal_positions.append(focal_position.flatten()[:3])
 
+
+        
         input_dict =dict(
             # sample_idx=info["token"],
             # sample_idx=info.get("token", ""), # todo token

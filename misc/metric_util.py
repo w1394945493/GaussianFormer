@@ -4,7 +4,8 @@ from mmengine import MMLogger
 logger = MMLogger.get_instance('selfocc')
 import torch.distributed as dist
 import torch
-
+from mmengine.logging import MMLogger, print_log
+from terminaltables import AsciiTable
 
 class MeanIoU:
 
@@ -72,40 +73,46 @@ class MeanIoU:
             dist.all_reduce(self.total_positive)
             dist.barrier()
 
+        
+        total_seen = self.total_seen.cpu().numpy()
+        total_correct = self.total_correct.cpu().numpy()
+        total_positive = self.total_positive.cpu().numpy()
+
         ious = []
-        precs = []
-        recas = []
+        ret_dict = dict()
 
-        for i in range(self.num_classes):
-            if self.total_positive[i] == 0:
-                precs.append(0.)
+        header = ['classes']
+        for i in range(len(self.label_str)):
+            header.append(self.label_str[i])
+        header.extend(['miou', 'iou'])
+        table_columns = [['results']]
+
+        for i in range(self.num_classes): # todo 只计算语义类，不包括非空类
+            if self.total_seen[i] == 0: # todo iou & recall
+                cur_iou = np.nan
             else:
-                cur_prec = self.total_correct[i] / self.total_positive[i]
-                precs.append(cur_prec.item())
-            if self.total_seen[i] == 0:
-                ious.append(1)
-                recas.append(1)
-            else:
-                cur_iou = self.total_correct[i] / (self.total_seen[i]
-                                                   + self.total_positive[i]
-                                                   - self.total_correct[i])
-                cur_reca = self.total_correct[i] / self.total_seen[i]
-                ious.append(cur_iou.item())
-                recas.append(cur_reca)
+                cur_iou = total_correct[i] / (total_seen[i] + total_positive[i] - total_correct[i]) # todo iou = TP / (TP + FN + FP)
 
-        miou = np.mean(ious)
-        # logger = get_root_logger()
-        logger.info(f'Validation per class iou {self.name}:')
-        for iou, prec, reca, label_str in zip(ious, precs, recas, self.label_str):
-            logger.info('%s : %.2f%%, %.2f, %.2f' % (label_str, iou * 100, prec, reca))
-        
-        logger.info(self.total_seen.int())
-        logger.info(self.total_correct.int())
-        logger.info(self.total_positive.int())
+            ious.append(cur_iou)
+            table_columns.append([f'{cur_iou:.4f}'])
+            
+            ret_dict[self.label_str[i]] = cur_iou * 100
 
-        occ_iou = self.total_correct[-1] / (self.total_seen[-1]
-                                            + self.total_positive[-1]
-                                            - self.total_correct[-1])
-        # logger.info(f'iou: {occ_iou}')
+        miou = np.nanmean(ious)
+        iou = total_correct[-1] / (total_seen[-1] + total_positive[-1] - total_correct[-1])
+
+        table_columns.append([f'{miou:.4f}'])
+        table_columns.append([f"{iou:.4f}"])
+
+        table_data = [header]
+        table_rows = list(zip(*table_columns))
+        table_data += table_rows
+        table = AsciiTable(table_data)
+        table.inner_footing_row_border = True
+        print_log('\n' + table.table)        
         
-        return miou * 100, occ_iou * 100
+        ret_dict['miou'] = miou * 100
+        ret_dict['iou'] = iou * 100
+        
+        # return miou * 100, iou * 100
+        return ret_dict

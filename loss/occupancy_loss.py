@@ -79,6 +79,7 @@ class OccupancyLoss(BaseLoss):
         self.loss_voxel_sem_scal_weight = multi_loss_weights.get('loss_voxel_sem_scal_weight', 1.0)
         self.loss_voxel_geo_scal_weight = multi_loss_weights.get('loss_voxel_geo_scal_weight', 1.0)
         self.loss_voxel_lovasz_weight = multi_loss_weights.get('loss_voxel_lovasz_weight', 1.0)
+        
         if balance_cls_weight:
             if manual_class_weight is not None:
                 self.class_weights = torch.tensor(manual_class_weight)
@@ -102,17 +103,17 @@ class OccupancyLoss(BaseLoss):
     def loss_voxel(self, pred_occ, sampled_xyz, sampled_label, occ_mask=None):
 
         tot_loss = 0.
-        if self.ignore_empty:
+        if self.ignore_empty: # todo False
             empty_mask = sampled_label != self.empty_label
             occ_mask = empty_mask if occ_mask is None else empty_mask & occ_mask.flatten(1)
 
-        if occ_mask is not None:
-            occ_mask = occ_mask.flatten(1)
+        if occ_mask is not None: # todo (1 200 200 16)
+            occ_mask = occ_mask.flatten(1) # todo (1 640000)
             sampled_label = sampled_label[occ_mask][None]
 
         for semantics in pred_occ:
             if occ_mask is not None:
-                semantics = semantics.transpose(1, 2)[occ_mask][None].transpose(1, 2) # 1, c, n # todo 剔除mask
+                semantics = semantics.transpose(1, 2)[occ_mask][None].transpose(1, 2) # 1, c, n # todo 剔除mask (b 18 6400)
             loss_dict = {}
             # semantics = semantics.transpose(0, 1).unsqueeze(0)
             if self.use_focal_loss:
@@ -121,12 +122,15 @@ class OccupancyLoss(BaseLoss):
             else:
                 if self.lovasz_use_softmax: # todo 计算了交叉熵损失
                     # todo ---------------------------------------------------------------------#
-                    # todo 交叉熵损失
+                    # todo 交叉熵损失 self.loss_voxel_ce_weight:10.0
                     loss_dict['loss_voxel_ce'] = self.loss_voxel_ce_weight * \
                         CE_ssc_loss(semantics, sampled_label, self.class_weights.type_as(semantics), ignore_index=255) # todo semantics: (b num_classes g) sampled_label: (b g)
                 else:
                     loss_dict['loss_voxel_ce'] = self.loss_voxel_ce_weight * CE_wo_softmax(
                         semantics, sampled_label, self.class_weights.type_as(semantics), ignore_index=255)
+            
+            
+            
             if self.use_sem_geo_scal_loss: # todo False
                 if self.lovasz_use_softmax:
                     scal_input = torch.softmax(semantics, dim=1)
@@ -134,13 +138,19 @@ class OccupancyLoss(BaseLoss):
                     scal_input = semantics
                 loss_dict['loss_voxel_sem_scal'] = self.loss_voxel_sem_scal_weight * sem_scal_loss(scal_input.clone(), sampled_label, ignore_index=255)
                 loss_dict['loss_voxel_geo_scal'] = self.loss_voxel_geo_scal_weight * geo_scal_loss(scal_input.clone(), sampled_label, ignore_index=255, non_empty_idx=self.empty_label)
+            
+            
+            
+            # todo ---------------------------------------------------------------------------#
             if self.use_lovasz_loss: # todo True
                 if self.lovasz_use_softmax: # todo True
                     lovasz_input = torch.softmax(semantics, dim=1) # todo (b num_classes g)
-                else:
-                    lovasz_input = semantics
+                else:  
+                    lovasz_input = semantics 
                 loss_dict['loss_voxel_lovasz'] = self.loss_voxel_lovasz_weight * lovasz_softmax(
-                    lovasz_input.transpose(1, 2).flatten(0, 1), sampled_label.flatten(), ignore=self.lovasz_ignore)
+                    lovasz_input.transpose(1, 2).flatten(0, 1), sampled_label.flatten(), ignore=self.lovasz_ignore)  # todo self.lovasz_ignore: True
+            
+            
             if self.use_dice_loss: # todo False
                 loss_dict['loss_voxel_dice'] = self.dice_loss(semantics, sampled_label)
 
@@ -148,7 +158,7 @@ class OccupancyLoss(BaseLoss):
             for k, v in loss_dict.items():
                 loss = loss + v
             tot_loss = tot_loss + loss
-        return tot_loss / len(pred_occ)
+        return tot_loss / len(pred_occ), loss_dict
 
 
 from torch.cuda.amp import autocast

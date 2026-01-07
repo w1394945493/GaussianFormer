@@ -2,8 +2,9 @@
 data_root = "/home/lianghao/wangyushen/data/wangyushen/Datasets/data/v1.0-mini/"
 anno_root = "/home/lianghao/wangyushen/data/wangyushen/Datasets/data/nuscenes_cam/mini/"
 occ_path = "/home/lianghao/wangyushen/data/wangyushen/Datasets/data/surroundocc/mini_samples/"
-input_shape = (704, 256)
+
 batch_size = 1
+# batch_size = 2
 
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True
@@ -23,11 +24,13 @@ test_pipeline = [
     dict(type="LoadMultiViewImageFromFiles", to_float32=True),
     dict(type="LoadOccupancySurroundOcc", occ_path=occ_path, semantic=True, use_ego=False),
     dict(type="ResizeCropFlipImage"),
+    # dict(type="PhotoMetricDistortionMultiViewImage"),
     dict(type="NormalizeMultiviewImage", **img_norm_cfg),
     dict(type="DefaultFormatBundle"),
     dict(type="NuScenesAdaptor", use_ego=False, num_cams=6),
 ]
 
+input_shape = (704, 256)
 data_aug_conf = {
     "resize_lim": (0.40, 0.47),
     "final_dim": input_shape[::-1],
@@ -43,25 +46,30 @@ train_dataset_config = dict(
     data_root=data_root,
     # imageset=anno_root + "nuscenes_infos_train_sweeps_occ.pkl",
     imageset=anno_root + "nuscenes_mini_infos_train_sweeps_occ.pkl",
+    # imageset=anno_root + "nuscenes_mini_infos_val_sweeps_occ.pkl",
     data_aug_conf=data_aug_conf,
     pipeline=train_pipeline,
-    phase='train'
+    phase='train' # todo 
 )
 
 val_dataset_config = dict(
     type='NuScenesDataset',
     data_root=data_root,
     # imageset=anno_root + "nuscenes_infos_val_sweeps_occ.pkl",
+    # imageset=anno_root + "nuscenes_mini_infos_train_sweeps_occ.pkl",
     imageset=anno_root + "nuscenes_mini_infos_val_sweeps_occ.pkl",
     data_aug_conf=data_aug_conf,
     pipeline=test_pipeline,
-    phase='val'
+    phase='val', # todo 
+    # phase='train',
 )
 
 train_loader = dict(
     batch_size=batch_size,
     num_workers=0,
-    shuffle=True
+    shuffle=True,
+    # shuffle=False,
+    
 )
 
 val_loader = dict(

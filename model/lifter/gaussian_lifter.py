@@ -76,7 +76,7 @@ class GaussianLifter(BaseLifter):
             self.instance_feature[None], (batch_size, 1, 1)
         ) # todo (b N 128) eg. N=25600
         if self.pts_init: # todo False
-            if self.xyz_act == "sigmoid":
+            if self.xyz_act == "sigmoid": 
                 xyz = safe_inverse_sigmoid(metas['anchor_points'])
             anchor = torch.cat([
                 xyz, torch.tile(self.anchor[None, :, 3:], (batch_size, 1, 1))], dim=-1)

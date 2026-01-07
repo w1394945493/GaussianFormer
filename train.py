@@ -2,12 +2,14 @@ from setproctitle import setproctitle
 setproctitle("wys")
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "6"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
+os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8" # todo 避免开启确定性计算时，调用可变形卷积部分报错
 import time, argparse, os.path as osp, os
 import torch, numpy as np
 import torch.distributed as dist
 from copy import deepcopy
+import json
 
 import mmcv
 from mmengine import Config
@@ -23,13 +25,14 @@ from timm.scheduler import CosineLRScheduler
 import warnings
 warnings.filterwarnings("ignore")
 
-
 def pass_print(*args, **kwargs):
     pass
 
 def main(local_rank, args):
     # global settings
-    set_random_seed(args.seed)
+    # deterministic = True
+    deterministic = False
+    set_random_seed(args.seed,deterministic=deterministic) # todo 随机数种子
     torch.backends.cudnn.deterministic = False
     torch.backends.cudnn.benchmark = True
 
@@ -69,9 +72,17 @@ def main(local_rank, args):
     else:
         writer = None
     timestamp = time.strftime('%Y%m%d_%H%M%S', time.localtime())
-    log_file = osp.join(args.work_dir, f'{timestamp}.log')
-    logger = MMLogger('selfocc', log_file=log_file)
-    MMLogger._instance_dict['selfocc'] = logger
+    log_dir = osp.join(args.work_dir,timestamp)
+    os.makedirs(log_dir,exist_ok=True)
+    log_file = osp.join(log_dir, f'{timestamp}.log')
+    # todo ------------------#
+    vis_dir = osp.join(log_dir,'vis_data')
+    os.makedirs(vis_dir,exist_ok=True)
+    vis_file = osp.join(vis_dir,f'{timestamp}.json')
+    
+    
+    logger = MMLogger('gaussianformer', log_file=log_file)
+    MMLogger._instance_dict['gaussianformer'] = logger
     logger.info(f'Config:\n{cfg.pretty_text}')
 
     # build model
@@ -80,7 +91,8 @@ def main(local_rank, args):
     from loss import OPENOCC_LOSS
 
     my_model = build_segmentor(cfg.model)
-    my_model.init_weights()
+    # todo -----------------------------------#
+    my_model.init_weights() # todo init_weights
     n_parameters = sum(p.numel() for p in my_model.parameters() if p.requires_grad)
     logger.info(f'Number of params: {n_parameters}')
 
@@ -108,11 +120,14 @@ def main(local_rank, args):
         cfg.val_dataset_config,
         cfg.train_loader,
         cfg.val_loader,
-        dist=distributed,
-        iter_resume=args.iter_resume)
+        dist=distributed, # todo False
+        iter_resume=args.iter_resume) # todo False
 
     # get optimizer, loss, scheduler
     optimizer = build_optim_wrapper(my_model, cfg.optimizer)
+    
+    # todo ---------------------------------------------------#
+    # todo MODEL定义
     loss_func = OPENOCC_LOSS.build(cfg.loss).cuda()
     max_num_epochs = cfg.max_epochs
     # if cfg.get('multisteplr', False):
@@ -130,13 +145,14 @@ def main(local_rank, args):
     #         t_in_epochs=False)
     scheduler = CosineLRScheduler(
         optimizer,
-        t_initial=len(train_dataset_loader) * max_num_epochs,
-        lr_min=cfg.optimizer["optimizer"]["lr"] * cfg.get("min_lr_ratio", 0.1), #1e-6,
-        warmup_t=cfg.get('warmup_iters', 500),
+        t_initial=len(train_dataset_loader) * max_num_epochs, 
+        lr_min=cfg.optimizer["optimizer"]["lr"] * cfg.get("min_lr_ratio", 0.1), 
+        warmup_t=cfg.get('warmup_iters', 500), 
         warmup_lr_init=1e-6,
-        t_in_epochs=False)
+        t_in_epochs=False) # todo 按iter
+    # todo 前warmup
     
-    amp = cfg.get('amp', False)
+    amp = cfg.get('amp', False) # todo False
     if amp:
         scaler = torch.cuda.amp.GradScaler()
         os.environ['amp'] = 'true'
@@ -185,7 +201,7 @@ def main(local_rank, args):
     # training
     print_freq = cfg.print_freq
     first_run = True
-    grad_accumulation = args.gradient_accumulation
+    grad_accumulation = args.gradient_accumulation # todo 1
     grad_norm = 0
     from misc.metric_util import MeanIoU
     miou_metric = MeanIoU(
@@ -196,7 +212,7 @@ def main(local_rank, args):
          'driveable_surface', 'other_flat', 'sidewalk', 'terrain', 'manmade',
          'vegetation'],
          True, 17, filter_minmax=False)
-    miou_metric.reset()
+    miou_metric.reset() # todo 
 
     while epoch < max_num_epochs:
         my_model.train()
@@ -230,10 +246,14 @@ def main(local_rank, args):
                         loss_input_key: result_dict[loss_input_val]})
                 loss, loss_dict = loss_func(loss_input)
                 loss = loss / grad_accumulation
-            if not amp:
-                loss.backward()
+            if not amp: # todo amp=False
+                # todo -----------------------------------------------#
+                loss.backward() # todo 计算梯度
                 if (global_iter + 1) % grad_accumulation == 0:
-                    grad_norm = torch.nn.utils.clip_grad_norm_(my_model.parameters(), cfg.grad_max_norm)
+                    # todo 进行梯度裁剪(Gradient clipping by norm): 如果当前反向传播得到的梯度太大，就整体按比例缩小
+                    # todo 函数返回的是裁剪前的梯度范数：grad_norm > 35: 发生了裁剪，grad_norm <= 35: 没有裁剪
+                    grad_norm = torch.nn.utils.clip_grad_norm_(my_model.parameters(), cfg.grad_max_norm) # todo cfg.grad_max_norm: 35
+                    
                     optimizer.step()
                     optimizer.zero_grad()
             else:
@@ -251,17 +271,44 @@ def main(local_rank, args):
 
             global_iter += 1
             if i_iter % print_freq == 0 and local_rank == 0:
-                lr = max([p['lr'] for p in optimizer.param_groups])
+                base_lr = max([p['lr'] for p in optimizer.param_groups])
                 # lr = optimizer.param_groups[0]['lr']
-                logger.info('[TRAIN] Epoch %d Iter %5d/%d: Loss: %.3f (%.3f), grad_norm: %.3f, lr: %.7f, time: %.3f (%.3f)'%(
+                lr = min([p['lr'] for p in optimizer.param_groups])
+                logger.info('[TRAIN] Epoch %d Iter %5d/%d: Loss: %.3f (%.3f), grad_norm: %.3f, base_lr: %.7f, lr: %.7f, time: %.3f (%.3f)'%(
                     epoch, i_iter, len(train_dataset_loader), 
-                    loss.item(), np.mean(loss_list), grad_norm, lr,
+                    loss.item(), np.mean(loss_list), grad_norm, base_lr, lr,
                     time_e - time_s, data_time_e - data_time_s))
-                detailed_loss = []
-                for loss_name, loss_value in loss_dict.items():
-                    detailed_loss.append(f'{loss_name}: {loss_value:.5f}')
-                detailed_loss = ', '.join(detailed_loss)
-                logger.info(detailed_loss)
+                
+                # todo -------------------------#
+                # todo 记录训练日志
+                log_dict = {}
+                log_dict['base_lr'] = float(base_lr)
+                log_dict['lr'] = float(lr)
+                log_dict['data_time'] = float(data_time_e - data_time_s)
+                log_dict['grad_norm'] = float(grad_norm)
+                log_dict['loss'] = float(loss.item())
+
+                # loss_dict 中的 key 顺序如果你也想固定，建议 sorted
+                for k, v in loss_dict.items():
+                    log_dict[k] = float(v.item() if torch.is_tensor(v) else v)
+
+                log_dict['time'] = float(time_e - time_s)
+                log_dict['epoch'] = int(epoch + 1)
+                log_dict['iter'] = int(global_iter)
+                # log_dict['memory'] = int(torch.cuda.memory_allocated() / 1024 / 1024)
+                log_dict['step'] = int(global_iter)
+
+                with open(vis_file, 'a') as f:
+                    json.dump(log_dict, f)
+                    f.write('\n')                
+                # todo -------------------------#
+                
+                
+                # detailed_loss = []
+                # for loss_name, loss_value in loss_dict.items():
+                #     detailed_loss.append(f'{loss_name}: {loss_value:.5f}')
+                # detailed_loss = ', '.join(detailed_loss)
+                # logger.info(detailed_loss)
                 loss_list = []
             data_time_s = time.time()
             time_s = time.time()
@@ -291,10 +338,13 @@ def main(local_rank, args):
                 'epoch': epoch + 1,
                 'global_iter': global_iter,
             }
-            save_file_name = os.path.join(os.path.abspath(args.work_dir), f'epoch_{epoch+1}.pth')
+            # save_file_name = os.path.join(os.path.abspath(args.work_dir), f'epoch_{epoch+1}.pth')
+            # torch.save(dict_to_save, save_file_name)
+            # dst_file = osp.join(args.work_dir, 'latest.pth')
+            # symlink(save_file_name, dst_file)
+            # todo --------------------------------#
+            save_file_name = os.path.join(os.path.abspath(args.work_dir), f'latest.pth')
             torch.save(dict_to_save, save_file_name)
-            dst_file = osp.join(args.work_dir, 'latest.pth')
-            symlink(save_file_name, dst_file)
 
         epoch += 1
         first_run = False
@@ -304,7 +354,7 @@ def main(local_rank, args):
             continue
         my_model.eval()
         os.environ['eval'] = 'true'
-        val_loss_list = []
+        # val_loss_list = []
 
         with torch.no_grad():
             for i_iter_val, data in enumerate(val_dataset_loader):
@@ -315,16 +365,14 @@ def main(local_rank, args):
                 
                 with torch.cuda.amp.autocast(amp):
                     result_dict = my_model(imgs=input_imgs, metas=data)
-
-                    loss_input = {
-                        'metas': data,
-                        'global_iter': global_iter
-                    }
-                    for loss_input_key, loss_input_val in cfg.loss_input_convertion.items():
-                        loss_input.update({
-                            loss_input_key: result_dict[loss_input_val]})
-                    loss, loss_dict = loss_func(loss_input)
-                
+                    # loss_input = {
+                    #     'metas': data,
+                    #     'global_iter': global_iter
+                    # }
+                    # for loss_input_key, loss_input_val in cfg.loss_input_convertion.items():
+                    #     loss_input.update({
+                    #         loss_input_key: result_dict[loss_input_val]})
+                    # loss, loss_dict = loss_func(loss_input)
                 if 'final_occ' in result_dict:
                     for idx, pred in enumerate(result_dict['final_occ']):
                         pred_occ = pred
@@ -332,20 +380,39 @@ def main(local_rank, args):
                         occ_mask = result_dict['occ_mask'][idx].flatten()
                         miou_metric._after_step(pred_occ, gt_occ, occ_mask)
                 
-                val_loss_list.append(loss.detach().cpu().numpy())
-                if i_iter_val % print_freq == 0 and local_rank == 0:
-                    logger.info('[EVAL] Epoch %d Iter %5d: Loss: %.3f (%.3f)'%(
-                        epoch, i_iter_val, loss.item(), np.mean(val_loss_list)))
-                    detailed_loss = []
-                    for loss_name, loss_value in loss_dict.items():
-                        detailed_loss.append(f'{loss_name}: {loss_value:.5f}')
-                    detailed_loss = ', '.join(detailed_loss)
-                    logger.info(detailed_loss)
+                # val_loss_list.append(loss.detach().cpu().numpy())
+                # if i_iter_val % print_freq == 0 and local_rank == 0:
+                #     logger.info('[EVAL] Epoch %d Iter %5d: Loss: %.3f (%.3f)'%(
+                #         epoch, i_iter_val, loss.item(), np.mean(val_loss_list)))
+                #     detailed_loss = []
+                #     for loss_name, loss_value in loss_dict.items():
+                #         detailed_loss.append(f'{loss_name}: {loss_value:.5f}')
+                #     detailed_loss = ', '.join(detailed_loss)
+                #     logger.info(detailed_loss)
                         
-        miou, iou2 = miou_metric._after_epoch()
-        logger.info(f'mIoU: {miou}, iou2: {iou2}')
-        logger.info('Current val loss is %.3f' % (np.mean(val_loss_list)))
-        miou_metric.reset()
+        
+        # miou, iou2 = miou_metric._after_epoch()
+        ret_dict = miou_metric._after_epoch()
+        
+        # miou, iou = ret_dict['miou'], ret_dict['iou']
+        # logger.info(f'mIoU: {miou}, iou: {iou}')
+
+        metric_str = ', '.join(
+            f'{k}: {("NaN" if np.isnan(v) else f"{v:.4f}")}'
+            for k, v in ret_dict.items()
+        )
+        logger.info(metric_str)
+
+        log_dict = {}
+        log_dict.update(ret_dict)
+        log_dict['epoch'] = int(epoch)
+        with open(vis_file, 'a') as f:
+            json.dump(log_dict, f)
+            f.write('\n')        
+        
+        
+        # logger.info('Current val loss is %.3f' % (np.mean(val_loss_list)))
+        miou_metric.reset() # todo reset()
     
     if writer is not None:
         writer.close()

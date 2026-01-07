@@ -26,12 +26,16 @@ class MultiLoss(nn.Module):
         loss_dict = {}
         tot_loss = 0.
         for loss_func in self.losses:
-            loss = loss_func(inputs)
+            # loss = loss_func(inputs)
+            # loss_dict.update({
+            #     loss_func.__class__.__name__: \
+            #     loss.detach().item()
+            # })
+            loss, loss_dict_ = loss_func(inputs)
             tot_loss += loss
-            loss_dict.update({
-                loss_func.__class__.__name__: \
-                loss.detach().item()
-            })
+            for k,v in loss_dict_.items():
+                loss_dict[k] = v.detach().item()
+            
             if writer and self.iter_counter % 10 == 0:
                 writer.add_scalar(
                     f'loss/{loss_func.__class__.__name__}', 

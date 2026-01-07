@@ -17,9 +17,22 @@ python /home/lianghao/wangyushen/Projects/GaussianFormer/eval.py \
     --resume-from /home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/nuscenes_gs25600_solid/state_dict.pth \
     --vis-occ
 
+python /home/lianghao/wangyushen/Projects/GaussianFormer/eval.py \
+    --py-config /home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py \
+    --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug \
+    --resume-from /home/lianghao/wangyushen/data/wangyushen/Weights/gaussianformer/custom/state_dict.pth
+
+export CUDA_VISIBLE_DEVICES=6
+python /home/lianghao/wangyushen/Projects/GaussianFormer/eval.py \
+    --py-config /home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py \
+    --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug \
+    --resume-from /home/lianghao/wangyushen/data/wangyushen/Output/gausstr/gaussianformer/train/epoch_24.pth
+
+
 # todo GaussianFormer 训练 示例
 python train.py --py-config config/xxxx.py --work-dir out/xxxx
 
+export CUDA_VISIBLE_DEVICES=6
 python /home/lianghao/wangyushen/Projects/GaussianFormer/train.py \
     --py-config /home/lianghao/wangyushen/Projects/GaussianFormer/config/nuscenes_gs25600_solid_custom.py \
-    --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/debug \
+    --work-dir /home/lianghao/wangyushen/data/wangyushen/Output/gaussianformer/train2 \
